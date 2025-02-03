@@ -11,5 +11,62 @@ CHIP Inc16 {
     OUT out[16];
 
     PARTS:
-    //// Replace this comment with your code.
+    Not(in=in[0], out=out[0]);
+    Xor(a=in[0], b=in[1], out=out[1], out=Xor1);
+
+    Not(in=Xor1, out=Not1);
+    And(a=in[1], b=Not1, out=And1);
+    Xor(a=in[2], b=And1, out=Xor2, out=out[2]);
+
+    Not(in=Xor2, out=Not2);
+    And(a=in[2], b=Not2, out=And2);
+    Xor(a=in[3], b=And2, out=Xor3, out=out[3]);
+
+    Not(in=Xor3, out=Not3);
+    And(a=in[3], b=Not3, out=And3);
+    Xor(a=in[4], b=And3, out=Xor4, out=out[4]);
+
+    Not(in=Xor4, out=Not4);
+    And(a=in[4], b=Not4, out=And4);
+    Xor(a=in[5], b=And4, out=Xor5, out=out[5]);
+
+    Not(in=Xor5, out=Not5);
+    And(a=in[5], b=Not5, out=And5);
+    Xor(a=in[6], b=And5, out=Xor6, out=out[6]);
+
+    Not(in=Xor6, out=Not6);
+    And(a=in[6], b=Not6, out=And6);
+    Xor(a=in[7], b=And6, out=Xor7, out=out[7]);
+
+    Not(in=Xor7, out=Not7);
+    And(a=in[7], b=Not7, out=And7);
+    Xor(a=in[8], b=And7, out=Xor8, out=out[8]);
+
+    Not(in=Xor8, out=Not8);
+    And(a=in[8], b=Not8, out=And8);
+    Xor(a=in[9], b=And8, out=Xor9, out=out[9]);
+
+    Not(in=Xor9, out=Not9);
+    And(a=in[9], b=Not9, out=And9);
+    Xor(a=in[10], b=And9, out=Xor10, out=out[10]);
+
+    Not(in=Xor10, out=Not10);
+    And(a=in[10], b=Not10, out=And10);
+    Xor(a=in[11], b=And10, out=Xor11, out=out[11]);
+
+    Not(in=Xor11, out=Not11);
+    And(a=in[11], b=Not11, out=And11);
+    Xor(a=in[12], b=And11, out=Xor12, out=out[12]);
+
+    Not(in=Xor12, out=Not12);
+    And(a=in[12], b=Not12, out=And12);
+    Xor(a=in[13], b=And12, out=Xor13, out=out[13]);
+
+    Not(in=Xor13, out=Not13);
+    And(a=in[13], b=Not13, out=And13);
+    Xor(a=in[14], b=And13, out=Xor14, out=out[14]);
+
+    Not(in=Xor14, out=Not14);
+    And(a=in[14], b=Not14, out=And14);
+    Xor(a=in[15], b=And14, out=Xor15, out=out[15]);
 }
