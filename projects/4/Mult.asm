@@ -11,6 +11,9 @@ M=D
 // while (i > 0):
 //     RAM[2] = RAM[2] + RAM[0]
 (LOOP)
+@END
+D-1;JLT
+
 @R0
 D=M
 
