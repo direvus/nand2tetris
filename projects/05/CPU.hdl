@@ -32,5 +32,56 @@ CHIP CPU {
         pc[15];          // address of next instruction
 
     PARTS:
-	//// Replace this comment with your code.
+    // Control Logic
+    Not(in=instruction[15], out=instructionA);
+    And(a=instruction[15], b=instruction[3], out=writeM);
+    And(a=instruction[15], b=instruction[4], out=writeD);
+    Or(a=instructionA, b=instruction[5], out=writeA);
+
+    // The Address (A) Register
+    Mux16(a=instruction, b=aluOut, sel=instruction[15], out=inA);
+    ARegister(in=inA, load=writeA, out=outA, out[0..14]=addressM);
+
+    // The Data (D) Register
+    DRegister(in=aluOut, load=writeD, out=outD);
+
+    // ALU
+    Mux16(a=outA, b=inM, sel=instruction[12], out=outAorM);
+    ALU(
+        x=outD,
+        y=outAorM,
+        zx=instruction[11],
+        nx=instruction[10],
+        zy=instruction[9],
+        ny=instruction[8],
+        f=instruction[7],
+        no=instruction[6],
+        out=aluOut, out=outM,
+        zr=aluZero,
+        ng=aluNeg);
+
+    // Jump logic
+    Xor(a=instruction[1], b=aluZero, out=zeroNotEqual);
+    Not(in=zeroNotEqual, out=zeroEqual);
+
+    Xor(a=instruction[2], b=aluNeg, out=negNotEqual);
+    Not(in=negNotEqual, out=negEqual);
+
+    And(a=zeroEqual, b=negEqual, out=zeroNegEqual);
+    Or(a=aluZero, b=aluNeg, out=zeroOrNeg);
+
+    Mux(a=false, b=zeroNegEqual, sel=instruction[0], out=jumpA1);
+    Mux(a=zeroEqual, b=negEqual, sel=instruction[0], out=jumpA2);
+    Mux(a=zeroNegEqual, b=zeroEqual, sel=instruction[0], out=jumpA3);
+    Mux(a=zeroOrNeg, b=true, sel=instruction[0], out=jumpA4);
+
+    Mux(a=jumpA1, b=jumpA2, sel=instruction[1], out=jumpB1);
+    Mux(a=jumpA3, b=jumpA4, sel=instruction[1], out=jumpB2);
+
+    Mux(a=jumpB1, b=jumpB2, sel=instruction[2], out=jump);
+    // only allow jump during C-instructions
+    And(a=jump, b=instruction[15], out=loadPC);
+
+    // Program Counter
+    PC(in=outA, reset=reset, load=loadPC, inc=true, out[0..14]=pc);
 }
