@@ -101,7 +101,7 @@ def translate_c_instruction(source: str) -> int:
     return 0xE000 | a | compcode | destcode | jumpcode
 
 
-def assemble(source: str) -> bytes:
+def assemble(source: str) -> list[int]:
     instructions = []
     symbols = dict(SYMBOLS)
     # First pass: remove comments and whitespace, assign line numbers and
@@ -158,16 +158,30 @@ def assemble(source: str) -> bytes:
             code = 0x7FFF & address
         else:
             code = translate_c_instruction(instruction)
-        packed = struct.pack('>H', code)
-        print(f'{instruction}   {code}   {bin(code)}')
-        result.append(struct.pack('>H', code))
-    return b''.join(result)
+        print(f'{instruction:12s}  {code:5d}   {code:016b}')
+        result.append(code)
+    return result
+
+
+def hackify(codes: list[int]) -> str:
+    """Translate a binary Hack program into a text representation.
+
+    Takes an array of integer machine instructions, and produces the text
+    representation as a single string.  The text representation has one
+    instruction per line, each line containing sixteen '1' or '0' characters.
+    """
+    result = []
+    for code in codes:
+        text = f'{code:016b}'
+        result.append(text)
+    return '\n'.join(result)
 
 
 def main(args):
     inpath = args.inputfile
     base, _ = os.path.splitext(inpath)
-    outpath = f'{base}.hack'
+    outpath = f'{base}.bin'
+    hackpath = f'{base}.hack'
 
     with open(inpath, 'r') as fp:
         source = fp.read()
@@ -175,7 +189,12 @@ def main(args):
     result = assemble(source)
 
     with open(outpath, 'wb') as fp:
-        fp.write(result)
+        for code in result:
+            fp.write(struct.pack('>H', code))
+
+    hack = hackify(result)
+    with open(hackpath, 'w') as fp:
+        fp.write(hack)
 
     return 0
 
