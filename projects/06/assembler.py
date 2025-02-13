@@ -39,6 +39,26 @@ COMPS = {
         'D&A': 0x0,  # 0 0 0 0 0 0
         'D|A': 0x15, # 0 1 0 1 0 1
         }
+SYMBOLS = {
+        'R0': 0,
+        'R1': 1,
+        'R2': 2,
+        'R3': 3,
+        'R4': 4,
+        'R5': 5,
+        'R6': 6,
+        'R7': 7,
+        'R8': 8,
+        'R9': 9,
+        'R10': 10,
+        'R11': 11,
+        'R12': 12,
+        'R13': 13,
+        'R14': 14,
+        'R15': 15,
+        'SCREEN': 16384,
+        'KBD': 24576,
+        }
 
 
 def translate_c_instruction(source: str) -> int:
@@ -83,7 +103,7 @@ def translate_c_instruction(source: str) -> int:
 
 def assemble(source: str) -> bytes:
     instructions = []
-    markers = {}
+    symbols = dict(SYMBOLS)
     # First pass: remove comments and whitespace, assign line numbers and
     # identify line marker symbols
     n = 0
@@ -103,7 +123,7 @@ def assemble(source: str) -> bytes:
             # itself does not translate into any machine code, and does not get
             # an instruction number.
             marker = line[1:-1]
-            markers[marker] = n
+            symbols[marker] = n
             continue
 
         instructions.append(line)
@@ -127,9 +147,6 @@ def assemble(source: str) -> bytes:
             if label.isdigit():
                 # Literal address
                 address = int(label)
-            elif label in markers:
-                # Line marker
-                address = markers[label]
             elif label in symbols:
                 # Existing variable symbol
                 address = symbols[label]
