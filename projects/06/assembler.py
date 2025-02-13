@@ -130,7 +130,6 @@ def assemble(source: str) -> list[int]:
         n += 1
 
     # Second pass: translate each instruction into machine code.
-    symbols = {}
     result = []
     register = 16
     for n, instruction in enumerate(instructions):
