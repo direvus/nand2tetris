@@ -162,7 +162,7 @@ def assemble(source: str) -> list[int]:
             code = 0x7FFF & address
         else:
             code = translate_c_instruction(instruction)
-        print(f'{instruction:12s}  {code:5d}   {code:016b}')
+        print(f'{instruction:24s}  {code:5d}   {code:016b}')
         result.append(code)
     return result
 
