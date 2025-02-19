@@ -22,4 +22,3 @@ CHIP RAM16K {
 
     Mux4Way16(a=Out0, b=Out1, c=Out2, d=Out3, sel=address[0..1], out=out);
 }
-}
