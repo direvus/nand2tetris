@@ -17,25 +17,51 @@ SEGMENT_BASES = {
         }
 POINTER_BASES = {0: 'THIS', 1: 'THAT'}
 TEMP_BASE = 5
-NEG = (
-        '@SP  // neg',
-        'A=M-1',
-        'M=-M',
-        )
-ADD = (
-        '@SP  // add',
-        'AM=M-1',
-        'D=M',
-        'A=A-1',
-        'M=D+M',
-        )
-SUB = (
-        '@SP  // sub',
-        'AM=M-1',
-        'D=-M',
-        'A=A-1',
-        'M=D+M',
-        )
+STATIC_OPS = {
+        'neg': (
+            '@SP  // neg',
+            'A=M-1',
+            'M=-M',
+            ),
+        'add': (
+            '@SP  // add',
+            'AM=M-1',
+            'D=M',
+            'A=A-1',
+            'M=D+M',
+            ),
+        'sub': (
+            '@SP  // sub',
+            'AM=M-1',
+            'D=-M',
+            'A=A-1',
+            'M=D+M',
+            ),
+        'and': (
+            '@SP  // and',
+            'AM=M-1',
+            'D=M',
+            'A=A-1',
+            'M=D&M',
+            ),
+        'or': (
+            '@SP  // or',
+            'AM=M-1',
+            'D=M',
+            'A=A-1',
+            'M=D|M',
+            ),
+        'not': (
+            '@SP  // not',
+            'A=M-1',
+            'M=!M',
+            ),
+        }
+COMPARISON_OPS = {
+        'eq': 'JEQ',
+        'lt': 'JLT',
+        'gt': 'JGT',
+        }
 
 
 def translate_push(context: str, segment: str, offset: int) -> tuple[str]:
@@ -179,36 +205,63 @@ def translate_pop(context: str, segment: str, offset: int) -> tuple[str]:
         raise ValueError(f"Invalid segment name '{segment}'.")
 
 
+def translate_comparison(context: str, linenum: int, op: str) -> tuple[str]:
+    jump = COMPARISON_OPS[op]
+    label = f'{context}.{linenum}'
+    return (
+            f'@SP  // {op}',
+            'AM=M-1',
+            'D=-M',
+            'A=A-1',
+            'D=D+M',
+            f'@{label}.TRUE',
+            f'D;{jump}',
+            'D=0',
+            f'@{label}.END',
+            '0;JMP',
+            f'({label}.TRUE)',
+            'D=-1',
+            f'({label}.END)',
+            '@SP',
+            'A=M-1',
+            'M=D',
+            )
+
+
 def translate(basename: str, stream) -> list[str]:
     result = []
+    linenum = 1
     for line in stream:
         if '//' in line:
             index = line.index('//')
             line = line[:index]
         line = line.strip()
         if line == '':
+            linenum += 1
             continue
 
         words = line.split()
         command = words[0]
 
-        if command == 'push':
-            segment = words[1]
-            offset = int(words[2])
-            result.extend(translate_push(basename, segment, offset))
-        elif command == 'pop':
-            segment = words[1]
-            offset = int(words[2])
-            result.extend(translate_pop(basename, segment, offset))
-        elif command == 'neg':
-            result.extend(NEG)
-        elif command == 'add':
-            result.extend(ADD)
-        elif command == 'sub':
-            result.extend(SUB)
-        else:
-            # TODO
-            raise NotImplementedError()
+        try:
+            if command in STATIC_OPS:
+                result.extend(STATIC_OPS[command])
+            elif command in COMPARISON_OPS:
+                result.extend(translate_comparison(basename, linenum, command))
+            elif command == 'push':
+                segment = words[1]
+                offset = int(words[2])
+                result.extend(translate_push(basename, segment, offset))
+            elif command == 'pop':
+                segment = words[1]
+                offset = int(words[2])
+                result.extend(translate_pop(basename, segment, offset))
+            else:
+                raise ValueError(f"Invalid command name '{command}'.")
+        except Exception as e:
+            raise Exception(f"Error on {basename} line {linenum}: {e}")
+
+        linenum += 1
     return result
 
 
@@ -217,13 +270,17 @@ def main(args):
     base, _ = os.path.splitext(inpath)
     outpath = f'{base}.asm'
 
-    with open(inpath, 'r') as fp:
-        result = translate(base, fp)
+    try:
+        with open(inpath, 'r') as fp:
+            result = translate(base, fp)
 
-    with open(outpath, 'w') as fp:
-        for line in result:
-            fp.write(line + '\n')
-    return 0
+        with open(outpath, 'w') as fp:
+            for line in result:
+                fp.write(line + '\n')
+        return 0
+    except Exception as e:
+        sys.stderr.write(str(e))
+        return 1
 
 
 if __name__ == '__main__':
