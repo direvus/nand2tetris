@@ -37,7 +37,7 @@ SUB = (
         )
 
 
-def translate_push(segment: str, offset: int) -> tuple[str]:
+def translate_push(context: str, segment: str, offset: int) -> tuple[str]:
     """Translate a `push` instruction into assembly.
 
     A push instruction takes a single value from some memory register and adds
@@ -85,12 +85,23 @@ def translate_push(segment: str, offset: int) -> tuple[str]:
                 'A=M-1',
                 'M=D',
                 )
-    else:
+    elif segment == 'static':
+        return (
+                f'@{context}.{offset}  // push <- static {offset}',
+                'D=M',
+                '@SP',
+                'M=M+1',
+                'A=M-1',
+                'M=D',
+                )
+    elif segment == 'pointer':
         # TODO
-        return tuple()
+        raise NotImplementedError()
+    else:
+        raise ValueError(f"Invalid segment name '{segment}'.")
 
 
-def translate_pop(segment: str, offset: int) -> tuple[str]:
+def translate_pop(context: str, segment: str, offset: int) -> tuple[str]:
     """Translate a `pop` instruction into assembly.
 
     A pop instruction removes the value from the top of the stack, and writes
@@ -133,12 +144,22 @@ def translate_pop(segment: str, offset: int) -> tuple[str]:
                 f'@{addr}',
                 'M=D',
                 )
-    else:
+    elif segment == 'static':
+        return (
+                f'@SP  // pop -> static {offset}',
+                'AM=M-1',
+                'D=M',
+                f'@{context}.{offset}',
+                'M=D',
+                )
+    elif segment == 'pointer':
         # TODO
-        return tuple()
+        raise NotImplementedError()
+    else:
+        raise ValueError(f"Invalid segment name '{segment}'.")
 
 
-def translate(stream) -> list[str]:
+def translate(basename: str, stream) -> list[str]:
     result = []
     for line in stream:
         if '//' in line:
@@ -154,11 +175,11 @@ def translate(stream) -> list[str]:
         if command == 'push':
             segment = words[1]
             offset = int(words[2])
-            result.extend(translate_push(segment, offset))
+            result.extend(translate_push(basename, segment, offset))
         elif command == 'pop':
             segment = words[1]
             offset = int(words[2])
-            result.extend(translate_pop(segment, offset))
+            result.extend(translate_pop(basename, segment, offset))
         elif command == 'neg':
             result.extend(NEG)
         elif command == 'add':
@@ -177,7 +198,7 @@ def main(args):
     outpath = f'{base}.asm'
 
     with open(inpath, 'r') as fp:
-        result = translate(fp)
+        result = translate(base, fp)
 
     with open(outpath, 'w') as fp:
         for line in result:
