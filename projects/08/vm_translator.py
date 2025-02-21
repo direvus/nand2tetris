@@ -241,6 +241,108 @@ def make_label(label: str) -> str:
     return f'LABEL-{label}'
 
 
+def translate_function(
+        basename: str, linenum: int, name: str, nlocals: int) -> tuple[str]:
+    label = f'FUNC-{basename}.{name}'
+    result = [
+            f'({label})',
+            '@LCL',
+            'A=M',
+            ]
+    # Initialise local variables to zero
+    for _ in range(nlocals):
+        result.extend([
+            'M=0',
+            'A=A+1',
+            ])
+    # Advance the stack pointer past the locals
+    if nlocals > 0:
+        result.extend([
+            'D=A',
+            '@SP',
+            'M=D',
+            ])
+    return tuple(result)
+
+
+def translate_call(
+        basename: str, linenum: int, name: str, nargs: int) -> tuple[str]:
+    label = f'RETURN-{basename}.{linenum}'
+    result = [
+            f'// call {name} {nargs}',
+            # Save the return address to the stack
+            f'@{label}',
+            'D=A',
+            '@SP',
+            'A=M',
+            'M=D',
+            ]
+    # Save the current memory segment pointers to the stack
+    for segment in ('LCL', 'ARG', 'THIS', 'THAT'):
+        result.extend((
+            f'@{segment}',
+            'D=M',
+            '@SP',
+            'AM=M+1',
+            'M=D',
+            ))
+    # Set up the SP, ARG and LCL pointers for the target function
+    offset = 5 + nargs
+    result.extend((
+            'D=A+1',
+            '@SP',
+            'M=D',
+            '@LCL',
+            'M=D',
+            f'@{offset}',
+            'D=D-A',
+            '@ARG',
+            'M=D',
+            # Jump to the target function definition
+            f'@FUNC-{name}'
+            '0;JMP',
+            # Return here when the target function completes
+            f'({label})'
+            ))
+    return tuple(result)
+
+
+def translate_return(basename: str, linenum: int) -> tuple[str]:
+    result = [
+            # Copy the top value from the stack to ARG[0]
+            f'@SP  // return {basename}.{linenum}',
+            'A=M-1',
+            'D=M',
+            '@ARG',
+            'A=M',
+            'M=D',
+            # Set the stack pointer to point after the new return value
+            'D=A+1',
+            '@SP',
+            'M=D',
+            # Restore the saved pointers for LCL, ARG, THIS and THAT from the
+            # calling scope.
+            '@LCL',
+            'D=M-1',
+            '@addr',
+            'AM=D',
+            ]
+    for segment in ('THAT', 'THIS', 'ARG', 'LCL'):
+        result.extend((
+                'D=M',
+                f'@{segment}',
+                'M=D',
+                '@addr',
+                'AM=M-1',
+                ))
+    # Jump to the return address
+    result.extend((
+            'A=M',
+            '0;JMP',
+            ))
+    return tuple(result)
+
+
 def translate_command(
         basename: str, linenum: int, command: str, args: list[str]
         ) -> tuple[str]:
@@ -252,25 +354,31 @@ def translate_command(
 
     if command in STATIC_OPS:
         return STATIC_OPS[command]
+
     elif command in COMPARISON_OPS:
         return translate_comparison(basename, linenum, command)
+
     elif command == 'push':
         segment = args[0]
         offset = int(args[1])
         return translate_push(basename, segment, offset)
+
     elif command == 'pop':
         segment = args[0]
         offset = int(args[1])
         return translate_pop(basename, segment, offset)
+
     elif command == 'label':
         label = make_label(args[0])
         return (f'({label})',)
+
     elif command == 'goto':
         label = make_label(args[0])
         return (
                 f'@{label}',
                 '0;JMP',
                 )
+
     elif command == 'if-goto':
         label = make_label(args[0])
         return (
@@ -280,6 +388,19 @@ def translate_command(
                 f'@{label}',
                 'D;JNE',
                 )
+    elif command == 'function':
+        name = args[0]
+        nlocals = int(args[1])
+        return translate_function(basename, linenum, name, nlocals)
+
+    elif command == 'call':
+        name = args[0]
+        nargs = int(args[1])
+        return translate_call(basename, linenum, name, nargs)
+
+    elif command == 'return':
+        return translate_return(basename, linenum)
+
     raise ValueError(f"Invalid command name '{command}'.")
 
 

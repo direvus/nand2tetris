@@ -17,5 +17,9 @@ $CPU "$DLDIR/projects/7/StackArithmetic/StackTest/StackTest.tst"
 VMT="$(dirname $0)/../projects/08/vm_translator.py"
 
 $VMT "$DLDIR/projects/8/ProgramFlow/BasicLoop/BasicLoop.vm"
+$VMT "$DLDIR/projects/8/ProgramFlow/FibonacciSeries/FibonacciSeries.vm"
+$VMT "$DLDIR/projects/8/FunctionCalls/SimpleFunction/SimpleFunction.vm"
 
 $CPU "$DLDIR/projects/8/ProgramFlow/BasicLoop/BasicLoop.tst"
+$CPU "$DLDIR/projects/8/ProgramFlow/FibonacciSeries/FibonacciSeries.tst"
+$CPU "$DLDIR/projects/8/FunctionCalls/SimpleFunction/SimpleFunction.tst"
