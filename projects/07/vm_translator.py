@@ -267,12 +267,13 @@ def translate(basename: str, stream) -> list[str]:
 
 def main(args):
     inpath = args.inputfile
-    base, _ = os.path.splitext(inpath)
-    outpath = f'{base}.asm'
+    basepath, _ = os.path.splitext(inpath)
+    basename = os.path.basename(basepath)
+    outpath = f'{basepath}.asm'
 
     try:
         with open(inpath, 'r') as fp:
-            result = translate(base, fp)
+            result = translate(basename, fp)
 
         with open(outpath, 'w') as fp:
             for line in result:

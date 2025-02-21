@@ -2,5 +2,6 @@
 *.zip
 .venv/
 out/
+download/
 
 .DS_Store

@@ -1,0 +1,15 @@
+DLDIR="$(dirname $0)/download"
+VMT="$(dirname $0)/out/project7/VMTranslator.py"
+CPU="$DLDIR/tools/CPUEmulator.sh"
+
+$VMT "$DLDIR/projects/7/MemoryAccess/BasicTest/BasicTest.vm"
+$VMT "$DLDIR/projects/7/MemoryAccess/PointerTest/PointerTest.vm"
+$VMT "$DLDIR/projects/7/MemoryAccess/StaticTest/StaticTest.vm"
+$VMT "$DLDIR/projects/7/StackArithmetic/SimpleAdd/SimpleAdd.vm"
+$VMT "$DLDIR/projects/7/StackArithmetic/StackTest/StackTest.vm"
+
+$CPU "$DLDIR/projects/7/MemoryAccess/BasicTest/BasicTest.tst"
+$CPU "$DLDIR/projects/7/MemoryAccess/PointerTest/PointerTest.tst"
+$CPU "$DLDIR/projects/7/MemoryAccess/StaticTest/StaticTest.tst"
+$CPU "$DLDIR/projects/7/StackArithmetic/SimpleAdd/SimpleAdd.tst"
+$CPU "$DLDIR/projects/7/StackArithmetic/StackTest/StackTest.tst"
