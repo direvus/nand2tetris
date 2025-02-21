@@ -1,5 +1,6 @@
 .*.sw?
 *.zip
 .venv/
+out/
 
 .DS_Store
