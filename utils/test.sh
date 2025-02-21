@@ -1,5 +1,5 @@
-DLDIR="$(dirname $0)/download"
-VMT="$(dirname $0)/out/project7/VMTranslator.py"
+DLDIR="$(dirname $0)/../download"
+VMT="$(dirname $0)/../out/project7/VMTranslator.py"
 CPU="$DLDIR/tools/CPUEmulator.sh"
 
 $VMT "$DLDIR/projects/7/MemoryAccess/BasicTest/BasicTest.vm"
