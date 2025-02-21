@@ -15,6 +15,7 @@ SEGMENT_BASES = {
         'this': 'THIS',
         'that': 'THAT',
         }
+POINTER_BASES = {0: 'THIS', 1: 'THAT'}
 TEMP_BASE = 5
 NEG = (
         '@SP  // neg',
@@ -95,8 +96,18 @@ def translate_push(context: str, segment: str, offset: int) -> tuple[str]:
                 'M=D',
                 )
     elif segment == 'pointer':
-        # TODO
-        raise NotImplementedError()
+        if offset not in POINTER_BASES:
+            raise ValueError(
+                    f"Invalid pointer offset {offset}, must be 0 or 1.")
+        addr = POINTER_BASES[offset]
+        return (
+                f'@{addr}  // push <- pointer {offset}',
+                'D=M',
+                '@SP',
+                'M=M+1',
+                'A=M-1',
+                'M=D',
+                )
     else:
         raise ValueError(f"Invalid segment name '{segment}'.")
 
@@ -153,8 +164,17 @@ def translate_pop(context: str, segment: str, offset: int) -> tuple[str]:
                 'M=D',
                 )
     elif segment == 'pointer':
-        # TODO
-        raise NotImplementedError()
+        if offset not in POINTER_BASES:
+            raise ValueError(
+                    f"Invalid pointer offset {offset}, must be 0 or 1.")
+        addr = POINTER_BASES[offset]
+        return (
+                '@SP  // pop -> pointer {offset}',
+                'AM=M-1',
+                'D=M',
+                f'@{addr}',
+                'M=D',
+                )
     else:
         raise ValueError(f"Invalid segment name '{segment}'.")
 
