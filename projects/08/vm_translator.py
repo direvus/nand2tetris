@@ -3,6 +3,7 @@
 """
 import argparse
 import os
+import re
 import sys
 
 
@@ -237,13 +238,21 @@ def translate_comparison(context: str, linenum: int, op: str) -> tuple[str]:
             )
 
 
+def make_label_text(text: str) -> str:
+    return re.sub(r'\W+', '__', text)
+
+
 def make_label(label: str) -> str:
-    return f'LABEL-{label}'
+    return f'LABEL_{make_label_text(label)}'
+
+
+def make_function_label(function_name: str) -> str:
+    return f'FUNC_{make_label_text(function_name)}'
 
 
 def translate_function(
         basename: str, linenum: int, name: str, nlocals: int) -> tuple[str]:
-    label = f'FUNC-{basename}.{name}'
+    label = make_function_label(name)
     result = [
             f'({label})',
             '@LCL',
@@ -267,7 +276,8 @@ def translate_function(
 
 def translate_call(
         basename: str, linenum: int, name: str, nargs: int) -> tuple[str]:
-    label = f'RETURN-{basename}.{linenum}'
+    loc = f'{basename}__{linenum}'
+    label = f'RETURN_{make_label_text(loc)}'
     result = [
             f'// call {name} {nargs}',
             # Save the return address to the stack
@@ -288,6 +298,7 @@ def translate_call(
             ))
     # Set up the SP, ARG and LCL pointers for the target function
     offset = 5 + nargs
+    target = make_function_label(name)
     result.extend((
             'D=A+1',
             '@SP',
@@ -299,10 +310,10 @@ def translate_call(
             '@ARG',
             'M=D',
             # Jump to the target function definition
-            f'@FUNC-{name}'
+            f'@{target}',
             '0;JMP',
             # Return here when the target function completes
-            f'({label})'
+            f'({label})',
             ))
     return tuple(result)
 
@@ -431,18 +442,42 @@ def translate(basename: str, stream) -> list[str]:
 
 
 def main(args):
-    inpath = args.inputfile
-    basepath, _ = os.path.splitext(inpath)
-    basename = os.path.basename(basepath)
-    outpath = f'{basepath}.asm'
+    inpath = args.inputpath
 
+    if os.path.isdir(inpath):
+        # For an input directory, scan the directory for *.vm files, translate
+        # each file and write the complete resulting assembly code as a single
+        # .asm file, inside the source directory and with the same name as the
+        # directory.
+        with os.scandir(inpath) as entries:
+            infiles = [
+                    os.path.join(inpath, x.name) for x in entries
+                    if x.name.endswith('.vm') and x.is_file()]
+        name = os.path.split(inpath)[-1]
+        outpath = f'{inpath}/{name}.asm'
+
+    else:
+        # For a single input file, translate that file and write the assembly
+        # code output to a file with the same base name but with a *.asm
+        # suffix.
+        infiles = [inpath]
+        basepath, _ = os.path.splitext(inpath)
+        outpath = f'{basepath}.asm'
+
+    result = []
     try:
-        with open(inpath, 'r') as fp:
-            result = translate(basename, fp)
+        for infile in infiles:
+            print(f"Translating {infile} ...")
+            basename = os.path.basename(os.path.splitext(infile)[0])
+            with open(infile, 'r') as fp:
+                result = translate(basename, fp)
 
+        print(f"Writing translated assembly code to {outpath} ...")
         with open(outpath, 'w') as fp:
             for line in result:
                 fp.write(line + '\n')
+
+        print("Done")
         return 0
     except Exception as e:
         sys.stderr.write(str(e))
@@ -451,7 +486,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('inputfile')
+    parser.add_argument('inputpath')
 
     args = parser.parse_args()
     sys.exit(main(args))
