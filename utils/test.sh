@@ -25,19 +25,19 @@ echo "---------"
 VMT="$(dirname $0)/../projects/08/vm_translator.py"
 
 echo "Program Flow / Basic Loop: "
-$VMT --no-bootstrap "$DLDIR/projects/8/ProgramFlow/BasicLoop/BasicLoop.vm" && \
+$VMT "$DLDIR/projects/8/ProgramFlow/BasicLoop/BasicLoop.vm" && \
     $CPU "$DLDIR/projects/8/ProgramFlow/BasicLoop/BasicLoop.tst" && \
     echo -e "\e[32m[OK]\e[0m" || echo -e "\e[31m[FAIL]\e[0m"
 echo ""
 
 echo "Program Flow / Fibonacci Series: "
-$VMT --no-bootstrap "$DLDIR/projects/8/ProgramFlow/FibonacciSeries/FibonacciSeries.vm" && \
+$VMT "$DLDIR/projects/8/ProgramFlow/FibonacciSeries/FibonacciSeries.vm" && \
     $CPU "$DLDIR/projects/8/ProgramFlow/FibonacciSeries/FibonacciSeries.tst" && \
     echo -e "\e[32m[OK]\e[0m" || echo -e "\e[31m[FAIL]\e[0m"
 echo ""
 
 echo "Function Calls / Simple Function: "
-$VMT --no-bootstrap "$DLDIR/projects/8/FunctionCalls/SimpleFunction/SimpleFunction.vm" && \
+$VMT "$DLDIR/projects/8/FunctionCalls/SimpleFunction/SimpleFunction.vm" && \
     $CPU "$DLDIR/projects/8/FunctionCalls/SimpleFunction/SimpleFunction.tst" && \
     echo -e "\e[32m[OK]\e[0m" || echo -e "\e[31m[FAIL]\e[0m"
 echo ""

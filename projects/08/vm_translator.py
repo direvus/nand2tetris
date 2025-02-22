@@ -454,12 +454,15 @@ class Translator:
 
 def main(args):
     inpath = args.inputpath
+    do_bootstrap = True
 
     if os.path.isdir(inpath):
         # For an input directory, scan the directory for *.vm files, translate
         # each file and write the complete resulting assembly code as a single
         # .asm file, inside the source directory and with the same name as the
-        # directory.
+        # directory. By default, the translator will include the bootstrap code
+        # at the start of the assembly program, unless --no-bootstrap is
+        # specified.
         with os.scandir(inpath) as entries:
             infiles = [
                     os.path.join(inpath, x.name) for x in entries
@@ -470,14 +473,18 @@ def main(args):
     else:
         # For a single input file, translate that file and write the assembly
         # code output to a file with the same base name but with a *.asm
-        # suffix.
+        # suffix. The default here is to do no bootstrapping.
         infiles = [inpath]
         basepath, _ = os.path.splitext(inpath)
         outpath = f'{basepath}.asm'
+        do_bootstrap = False
+
+    if args.no_bootstrap:
+        do_bootstrap = False
 
     try:
         result = []
-        if not args.no_bootstrap:
+        if do_bootstrap:
             result.extend(BOOTSTRAP)
             # `bootstrap` isn't really a "translator" since it doesn't read a
             # source file. We're just using it here as a convenient way to
