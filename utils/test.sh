@@ -39,3 +39,6 @@ echo "Function Calls / Fibonacci Element"
 $VMT "$DLDIR/projects/8/FunctionCalls/FibonacciElement" && \
     $CPU "$DLDIR/projects/8/FunctionCalls/FibonacciElement/FibonacciElement.tst"
 
+echo "Function Calls / Statics"
+$VMT "$DLDIR/projects/8/FunctionCalls/StaticsTest" && \
+    $CPU "$DLDIR/projects/8/FunctionCalls/StaticsTest/StaticsTest.tst"
