@@ -20,15 +20,15 @@ $VMT "$DLDIR/projects/7/StackArithmetic/StackTest/StackTest.vm" && \
 VMT="$(dirname $0)/../projects/08/vm_translator.py"
 
 echo "Program Flow / Basic Loop:"
-$VMT "$DLDIR/projects/8/ProgramFlow/BasicLoop/BasicLoop.vm" && \
+$VMT --no-bootstrap "$DLDIR/projects/8/ProgramFlow/BasicLoop/BasicLoop.vm" && \
     $CPU "$DLDIR/projects/8/ProgramFlow/BasicLoop/BasicLoop.tst"
 
 echo "Program Flow / Fibonacci Series:"
-$VMT "$DLDIR/projects/8/ProgramFlow/FibonacciSeries/FibonacciSeries.vm" && \
+$VMT --no-bootstrap "$DLDIR/projects/8/ProgramFlow/FibonacciSeries/FibonacciSeries.vm" && \
     $CPU "$DLDIR/projects/8/ProgramFlow/FibonacciSeries/FibonacciSeries.tst"
 
 echo "Function Calls / Simple Function:"
-$VMT "$DLDIR/projects/8/FunctionCalls/SimpleFunction/SimpleFunction.vm" && \
+$VMT --no-bootstrap "$DLDIR/projects/8/FunctionCalls/SimpleFunction/SimpleFunction.vm" && \
     $CPU "$DLDIR/projects/8/FunctionCalls/SimpleFunction/SimpleFunction.tst"
 
 echo "Function Calls / Nested Call"

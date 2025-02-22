@@ -71,10 +71,16 @@ ARG_COUNTS = {
         'function': 2,
         'call': 2,
         }
+BOOTSTRAP = (
+        '@256  // Bootstrap: SP=256',
+        'D=A',
+        '@SP',
+        'M=D',
+        )
 
 
 class Translator:
-    def __init__(self, module: str, stream):
+    def __init__(self, module: str, stream=None):
         self.module = module
         self.stream = stream
         self.linenum = 1
@@ -83,7 +89,7 @@ class Translator:
         self.calls = 0
 
     def make_label(self, name: str) -> str:
-        return f'{self.module}.{self.function}${name}'
+        return f'{self.function}${name}'
 
     def translate_push(self, segment: str, offset: int) -> tuple[str]:
         """Translate a `push` instruction into assembly.
@@ -230,7 +236,7 @@ class Translator:
 
     def translate_comparison(self, op: str) -> tuple[str]:
         jump = COMPARISON_OPS[op]
-        label = f'{self.module}.{self.function}.{self.linenum}'
+        label = f'{self.function}.{self.linenum}'
         return (
                 f'@SP  // {op}',
                 'AM=M-1',
@@ -253,7 +259,7 @@ class Translator:
     def translate_function(self, name: str, nlocals: int) -> tuple[str]:
         self.function = name
         result = [
-                f'({self.module}.{self.function})',
+                f'({self.function})',
                 '@LCL',
                 'A=M',
                 ]
@@ -274,7 +280,7 @@ class Translator:
 
     def translate_call(self, name: str, nargs: int) -> tuple[str]:
         self.calls += 1
-        label = f'{self.module}.{self.function}$ret.{self.calls}'
+        label = f'{self.function}$ret.{self.calls}'
         result = [
                 f'// call {name} {nargs}',
                 # Save the return address to the stack
@@ -316,7 +322,7 @@ class Translator:
     def translate_return(self) -> tuple[str]:
         result = [
                 # Copy the return address (from LCL - 5) to a variable
-                '@5  // return from {self.module}.{self.function}',
+                '@5  // return from {self.function}',
                 'D=A',
                 '@LCL',
                 'A=M-D',
@@ -471,19 +477,24 @@ def main(args):
 
     try:
         result = []
+        if not args.no_bootstrap:
+            result.extend(BOOTSTRAP)
+            # `bootstrap` isn't really a "translator" since it doesn't read a
+            # source file. We're just using it here as a convenient way to
+            # generate instruction for the call to Sys.init.
+            bootstrap = Translator('bootstrap')
+            result.extend(bootstrap.translate_call('Sys.init', 0))
+
         for infile in infiles:
             basename = os.path.basename(os.path.splitext(infile)[0])
-            print(f"Translating {basename} from {infile} ...")
             with open(infile, 'r') as fp:
                 tr = Translator(basename, fp)
                 result.extend(tr.translate())
 
-        print(f"Writing translated assembly code to {outpath} ...")
         with open(outpath, 'w') as fp:
             for line in result:
                 fp.write(line + '\n')
 
-        print("Done")
         return 0
     except Exception as e:
         sys.stderr.write(str(e))
@@ -492,6 +503,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('-n', '--no-bootstrap', action='store_true')
     parser.add_argument('inputpath')
 
     args = parser.parse_args()
