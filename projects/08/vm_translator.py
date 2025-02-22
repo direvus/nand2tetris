@@ -320,8 +320,16 @@ def translate_call(
 
 def translate_return(basename: str, linenum: int) -> tuple[str]:
     result = [
+            # Copy the return address (from LCL - 5) to a variable
+            '@5  // return {basename}.{linenum}',
+            'D=A',
+            '@LCL',
+            'A=M-D',
+            'D=M',
+            '@return',
+            'M=D',
             # Copy the top value from the stack to ARG[0]
-            f'@SP  // return {basename}.{linenum}',
+            '@SP',
             'A=M-1',
             'D=M',
             '@ARG',
@@ -348,6 +356,7 @@ def translate_return(basename: str, linenum: int) -> tuple[str]:
                 ))
     # Jump to the return address
     result.extend((
+            '@return',
             'A=M',
             '0;JMP',
             ))
