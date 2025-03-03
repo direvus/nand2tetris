@@ -10,6 +10,12 @@ KEYWORDS = {
         'int', 'char', 'boolean', 'void',
         'true', 'false', 'null', 'this',
         'let', 'do', 'if', 'else', 'while', 'return'}
+ESCAPES = (
+        ('&', '&amp;'),
+        ('<', '&lt;'),
+        ('>', '&gt;'),
+        ('"', '&quot;'),
+        )
 
 
 class Tokeniser:
@@ -126,9 +132,14 @@ def main(args):
 
     try:
         with open(inpath, 'r') as fp:
+            print('<tokens>')
             tok = Tokeniser(fp)
             for token_type, value in tok.generate():
+                value = str(value)
+                for esc, repl in ESCAPES:
+                    value = value.replace(esc, repl)
                 print(f'<{token_type}> {value} </{token_type}>')
+            print('</tokens>')
         return 0
     except Exception as e:
         sys.stderr.write(str(e))
