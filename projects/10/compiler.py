@@ -11,6 +11,8 @@ CLASS_VAR_TYPES = {'field', 'static'}
 SUBROUTINE_TYPES = {'constructor', 'function', 'method'}
 STATEMENT_TYPES = {'let', 'if', 'while', 'do', 'return'}
 KEYWORD_CONSTANTS = {'true', 'false', 'null', 'this'}
+OPERATORS = {'+', '-', '*', '/', '&', '|', '<', '>', '='}
+UNARY_OPERATORS = {'-', '~'}
 
 
 def escape(text):
@@ -451,13 +453,67 @@ class Compiler:
         return node
 
     def compile_expression(self):
+        """Compile an expression.
+
+        An expression consists of a term, followed by zero or more op and term
+        pairs.
+
+            expression: term (op term)*
+        """
         node = Node('expression')
         node.add_child(self.compile_term())
+
+        while self.match_token('symbol', OPERATORS):
+            node.add_child(*self.pop_token())
+            node.add_child(self.compile_term())
         return node
 
     def compile_term(self):
+        """Compile a term.
+
+        A term can be a constant, a variable name, an array index into a
+        variable name, a subroutine call, a nested expression enclosed in
+        parentheses, or a unary operator followed by a term.
+
+            term: integerConstant | stringConstant | keywordConstant |
+                    varName | varName '[' expression ']' | subroutineCall |
+                    '(' expression ')' | unaryOp term
+        """
         node = Node('term')
-        node.add_child(*self.pop_token())
+        if (
+                self.match_token('integerConstant') or
+                self.match_token('stringConstant') or
+                self.match_token('keyword', KEYWORD_CONSTANTS)):
+            node.add_child(*self.pop_token())
+
+        elif self.match_token('symbol', '('):
+            node.add_child(*self.pop_token())
+            node.add_child(self.compile_expression())
+            node.add_child(*self.pop_token('symbol', ')'))
+
+        elif self.match_token('symbol', UNARY_OPERATORS):
+            node.add_child(*self.pop_token())
+            node.add_child(self.compile_term())
+
+        else:
+            # The only remaining cases are a variable reference, array index
+            # into a variable, or subroutine call, so the next token must be an
+            # identifier regardless.
+            node.add_child(*self.pop_token('identifier'))
+            if self.match_token('symbol', '['):
+                # Array index
+                node.add_child(*self.pop_token())
+                node.add_child(self.compile_expression())
+                node.add_child(*self.pop_token('symbol', ']'))
+            elif self.match_token('symbol', {'.', '('}):
+                # Subroutine call
+                if self.match_token('symbol', '.'):
+                    # className.subroutineName syntax
+                    node.add_child(*self.pop_token())
+                    node.add_child(*self.pop_token('identifier'))
+                node.add_child(*self.pop_token('symbol', '('))
+                node.add_child(self.compile_expression_list())
+                node.add_child(*self.pop_token('symbol', ')'))
         return node
 
     def compile_expression_list(self):
@@ -479,7 +535,7 @@ class Compiler:
         padding = '  ' * depth
         stream.write(f'{padding}<{node.node_type}>')
         if node.content is not None:
-            stream.write(escape(node.content))
+            stream.write(escape(str(node.content)))
             stream.write(f'</{node.node_type}>\n')
         else:
             stream.write('\n')

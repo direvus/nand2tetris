@@ -1,5 +1,7 @@
-DLDIR="$(dirname $0)/../download"
-VMT="$(dirname $0)/../projects/07/vm_translator.py"
+#!/bin/sh
+DIR="$(dirname "$0")"
+DLDIR="${DIR}/../download"
+VMT="${DIR}/../projects/07/vm_translator.py"
 CPU="$DLDIR/tools/CPUEmulator.sh"
 
 echo "Project 7"
@@ -18,44 +20,63 @@ $VMT "$DLDIR/projects/7/StackArithmetic/SimpleAdd/SimpleAdd.vm" && \
 
 $VMT "$DLDIR/projects/7/StackArithmetic/StackTest/StackTest.vm" && \
     $CPU "$DLDIR/projects/7/StackArithmetic/StackTest/StackTest.tst"
-echo ""
 
+echo ""
 echo "Project 8"
 echo "---------"
-VMT="$(dirname $0)/../projects/08/vm_translator.py"
+VMT="${DIR}/../projects/08/vm_translator.py"
 
 echo "Program Flow / Basic Loop: "
 $VMT "$DLDIR/projects/8/ProgramFlow/BasicLoop/BasicLoop.vm" && \
     $CPU "$DLDIR/projects/8/ProgramFlow/BasicLoop/BasicLoop.tst" && \
-    echo -e "\e[32m[OK]\e[0m" || echo -e "\e[31m[FAIL]\e[0m"
-echo ""
+    printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
 
 echo "Program Flow / Fibonacci Series: "
 $VMT "$DLDIR/projects/8/ProgramFlow/FibonacciSeries/FibonacciSeries.vm" && \
     $CPU "$DLDIR/projects/8/ProgramFlow/FibonacciSeries/FibonacciSeries.tst" && \
-    echo -e "\e[32m[OK]\e[0m" || echo -e "\e[31m[FAIL]\e[0m"
-echo ""
+    printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
 
 echo "Function Calls / Simple Function: "
 $VMT "$DLDIR/projects/8/FunctionCalls/SimpleFunction/SimpleFunction.vm" && \
     $CPU "$DLDIR/projects/8/FunctionCalls/SimpleFunction/SimpleFunction.tst" && \
-    echo -e "\e[32m[OK]\e[0m" || echo -e "\e[31m[FAIL]\e[0m"
-echo ""
+    printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
 
 echo "Function Calls / Nested Call: "
 $VMT "$DLDIR/projects/8/FunctionCalls/NestedCall" && \
     $CPU "$DLDIR/projects/8/FunctionCalls/NestedCall/NestedCall.tst" && \
-    echo -e "\e[32m[OK]\e[0m" || echo -e "\e[31m[FAIL]\e[0m"
-echo ""
+    printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
 
 echo "Function Calls / Fibonacci Element: "
 $VMT "$DLDIR/projects/8/FunctionCalls/FibonacciElement" && \
     $CPU "$DLDIR/projects/8/FunctionCalls/FibonacciElement/FibonacciElement.tst" && \
-    echo -e "\e[32m[OK]\e[0m" || echo -e "\e[31m[FAIL]\e[0m"
-echo ""
+    printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
 
 echo "Function Calls / Statics: "
 $VMT "$DLDIR/projects/8/FunctionCalls/StaticsTest" && \
     $CPU "$DLDIR/projects/8/FunctionCalls/StaticsTest/StaticsTest.tst" && \
-    echo -e "\e[32m[OK]\e[0m" || echo -e "\e[31m[FAIL]\e[0m"
+    printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
+
 echo ""
+echo "Project 10"
+echo "----------"
+
+COMP="${DIR}/../projects/10/compiler.py"
+CHECK="${DLDIR}/tools/TextComparer.sh"
+
+echo "ArrayTest"
+$COMP "$DLDIR/projects/10/ArrayTest/Main.jack" > out/Main.xml && \
+    $CHECK "$DLDIR/projects/10/ArrayTest/Main.xml" out/Main.xml
+    printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
+
+echo "Square"
+$COMP "$DLDIR/projects/10/Square/Main.jack" > out/Main.xml && \
+    $CHECK "$DLDIR/projects/10/Square/Main.xml" out/Main.xml
+    printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
+
+$COMP "$DLDIR/projects/10/Square/Square.jack" > out/Square.xml && \
+    $CHECK "$DLDIR/projects/10/Square/Square.xml" out/Square.xml
+    printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
+
+$COMP "$DLDIR/projects/10/Square/SquareGame.jack" > out/SquareGame.xml && \
+    $CHECK "$DLDIR/projects/10/Square/SquareGame.xml" out/SquareGame.xml
+    printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
