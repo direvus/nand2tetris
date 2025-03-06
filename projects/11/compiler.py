@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 import argparse
 import sys
-from collections import deque
+from collections import defaultdict, deque
 
-from tokeniser import Tokeniser
+from tokeniser import Token, Tokeniser
 
 
 PRIMITIVE_TYPES = {'int', 'char', 'boolean'}
@@ -12,51 +12,62 @@ SUBROUTINE_TYPES = {'constructor', 'function', 'method'}
 STATEMENT_TYPES = {'let', 'if', 'while', 'do', 'return'}
 KEYWORD_CONSTANTS = {'true', 'false', 'null', 'this'}
 OPERATORS = {'+', '-', '*', '/', '&', '|', '<', '>', '='}
-UNARY_OPERATORS = {'-', '~'}
+UNARY_OPERATORS = {'-': 'neg', '~': 'not'}
 
 
-def html_escape(text):
-    return text.replace(
-            '&', '&amp;').replace(
-            '<', '&lt;').replace(
-            '>', '&gt;').replace(
-            '"', '&quot;')
+class SymbolTable:
+    def __init__(self):
+        self.symbols = {}
+        self.counters = defaultdict(lambda: 0)
+
+    def add_symbol(self, name, typ, kind):
+        index = self.counters[kind]
+        if name in self.symbols:
+            raise ValueError(f"Symbol '{name}' already exists in this table.")
+        record = (typ, kind, index)
+        self.symbols[name] = record
+        self.counters[kind] += 1
+        return index
+
+    def get(self, name):
+        return self.symbols[name]
+
+    def get_count(self, kind):
+        return self.counters[kind]
 
 
-class Node:
-    def __init__(self, node_type, content=None):
-        self.node_type = node_type
-        self.content = content
-        self.children = []
+class Compiler:
+    """A Compiler instance compiles a single Jack source code file to VM code.
 
-    def add_child(self, node_type, content=None):
-        if isinstance(node_type, Node):
-            child = node_type
-        else:
-            child = Node(node_type, content)
-        self.children.append(child)
-        return child
-
-
-class Parser:
-    """A Parser instance parses a single Jack code file.
-
-    The Parser calls the tokeniser and analyses the stream of tokens to
-    produce an abstract syntax tree.
-
-    This abstract syntax tree can then be rendered into various
-    representations, including Hack VM code.
+    The Compiler passes its input stream to the tokeniser, and analyses the
+    stream of tokens produced by the Tokeniser in order to generate VM code.
     """
-    def __init__(self, stream):
-        self.tokeniser = Tokeniser(stream)
+    def __init__(self, input_stream, output_stream):
+        self.output_stream = output_stream
+        self.tokeniser = Tokeniser(input_stream)
         self.tokens = deque()
-        self.root = None
+        self.class_symbols = SymbolTable()
+        self.subroutine_symbols = SymbolTable()
+        self.class_name = None
+        self.label_counter = 0
+
+    def write(self, text):
+        """Write text as-is to the output stream."""
+        self.output_stream.write(text)
+
+    def write_line(self, line):
+        """Write one line of text (VM instruction) to the output stream.
+
+        A newline character is appended to the stream automatically.
+        """
+        self.write(line)
+        self.write('\n')
 
     def read_token(self):
         """Consume one token from the tokeniser.
 
         The token is appended to end of the internal tokens list and also
-        returned from this method, as a tuple of (type, value).
+        returned from this method, as a Token object.
 
         Raise an exception if there are no more tokens available.
         """
@@ -113,17 +124,17 @@ class Parser:
         collection.
         """
         try:
-            token_type, value = self.get_token()
+            token = self.get_token()
         except ValueError:
             return False
 
-        if type_required is not None and type_required != token_type:
+        if type_required is not None and type_required != token.token_type:
             return False
         if value_required is not None:
             if isinstance(value_required, str):
-                if value_required != value:
+                if value_required != token.value:
                     return False
-            elif value not in value_required:
+            elif token.value not in value_required:
                 return False
         return True
 
@@ -148,27 +159,48 @@ class Parser:
             label = f"{type_required} '{'|'.join(value_required)}'"
 
         try:
-            token_type, value = self.get_token()
+            token = self.get_token()
         except ValueError:
             raise ValueError(f'Expected {label} but no more tokens available')
 
-        if type_required is not None and type_required != token_type:
-            raise ValueError(f'Expected {label}, but got {token_type} {value}')
+        if type_required is not None and type_required != token.token_type:
+            raise ValueError(f'Expected {label}, but got {token}')
         if value_required is not None:
             if isinstance(value_required, str):
-                if value_required != value:
-                    raise ValueError(f"Expected {label}, but got '{value}'")
-            elif value not in value_required:
-                raise ValueError(f"Expected {label}, but got '{value}'")
-        self.token_type = token_type
-        self.token_value = value
-        return token_type, value
+                if value_required != token.value:
+                    raise ValueError(f"Expected {label}, but got '{token}'")
+            elif token.value not in value_required:
+                raise ValueError(f"Expected {label}, but got '{token}'")
+        return token
 
-    def parse(self):
-        self.root = self.parse_class()
+    def lookup_symbol(self, name):
+        """Look up a symbol in the symbol tables.
 
-    def parse_class(self):
-        """Parse a class declaration.
+        If the symbol exists in the subroutine symbol table, it is returned
+        from there first. Otherwise, we look for it in the class table. If it
+        is not in either table, that is an error.
+
+        If the symbol is found, return its memory segment name and index as a
+        string. If not, raise an error.
+        """
+        try:
+            symbol = self.subroutine_symbols.get(name)
+        except KeyError:
+            symbol = self.class_symbols.get(name)
+
+        return f'{symbol[1]} {symbol[2]}'
+
+    def compile(self):
+        """Begin compiling a Jack source code stream.
+
+        Every Jack source code file is expected to contain exactly one class,
+        and nothing else besides. So in this method, we simply hand control off
+        to compile_class().
+        """
+        self.compile_class()
+
+    def compile_class(self):
+        """Compile a class declaration.
 
         A class begins with the keyword 'class', then an identifier for the
         name of the class, followed by zero or more class variable
@@ -177,24 +209,20 @@ class Parser:
 
             class: 'class' identifier '{' classVarDec* subroutineDec* '}'
         """
-        node = Node('class')
-        node.add_child(*self.pop_token('keyword', 'class'))
-        node.add_child(*self.pop_token('identifier'))
-        node.add_child(*self.pop_token('symbol', '{'))
+        self.pop_token('keyword', 'class')
+        self.class_name = self.compile_identifier()
+        self.pop_token('symbol', '{')
 
         while self.match_token('keyword', CLASS_VAR_TYPES):
-            vardec = self.parse_class_var_dec()
-            node.add_child(vardec)
+            self.compile_class_var_dec()
 
         while self.match_token('keyword', SUBROUTINE_TYPES):
-            sub = self.parse_subroutine_dec()
-            node.add_child(sub)
+            self.compile_subroutine_dec()
 
-        node.add_child(*self.pop_token('symbol', '}'))
-        return node
+        self.pop_token('symbol', '}')
 
-    def parse_class_var_dec(self):
-        """Parse a class variable declaration.
+    def compile_class_var_dec(self):
+        """Compile a class variable declaration.
 
         A class variable is one of the two keywords 'static' or 'field',
         followed by a type specifier, followed by a variable name. It can then
@@ -203,21 +231,21 @@ class Parser:
 
             classVarDec: ('static' | 'field') type varName (',' varName)* ';'
         """
-        node = Node('classVarDec')
-        node.add_child(*self.pop_token('keyword', CLASS_VAR_TYPES))
-        node.add_child(self.parse_type())
-        node.add_child(*self.pop_token('identifier'))
+        kind = self.pop_token('keyword', CLASS_VAR_TYPES).value
+        vartype = self.compile_type()
+        name = self.pop_token('identifier')
+        self.class_symbols.add_symbol(name, vartype, kind)
 
         # Zero or more commas followed by additional variable names
         while self.match_token('symbol', ','):
-            node.add_child(*self.pop_token())
-            node.add_child(*self.pop_token('identifier'))
+            self.pop_token()
+            name = self.pop_token('identifier')
+            self.class_symbols.add_symbol(name, vartype, kind)
 
-        node.add_child(*self.pop_token('symbol', ';'))
-        return node
+        self.pop_token('symbol', ';')
 
-    def parse_subroutine_dec(self):
-        """Parse a subroutine declaration.
+    def compile_subroutine_dec(self):
+        """Compile a subroutine declaration.
 
         A subroutine declaration begins with one of the three keywords
         'constructor', 'method' or 'function', followed by the return type,
@@ -231,43 +259,44 @@ class Parser:
                     ('void' | type) identifier '(' parameterList ')'
                     subroutineBody
         """
-        node = Node('subroutineDec')
-        node.add_child(*self.pop_token('keyword', SUBROUTINE_TYPES))
+        subtype = self.pop_token('keyword', SUBROUTINE_TYPES).value
         if self.match_token('keyword', 'void'):
-            node.add_child(*self.pop_token())
+            return_type = self.pop_token().value
         else:
-            node.add_child(self.parse_type())
+            return_type = self.compile_type()
 
-        node.add_child(*self.pop_token('identifier'))
-        node.add_child(*self.pop_token('symbol', '('))
-        node.add_child(self.parse_parameter_list())
-        node.add_child(*self.pop_token('symbol', ')'))
+        name = self.compile_identifier()
+        self.local_count = 0
+        self.subroutine_symbols = SymbolTable()
+        self.pop_token('symbol', '(')
+        self.compile_parameter_list()
+        self.pop_token('symbol', ')')
 
-        node.add_child(self.parse_subroutine_body())
-        return node
+        # Leave the line running so that subroutine_body can fill in the number
+        # of locals.
+        self.write(f'function {self.class_name}.{name} ')
+        self.compile_subroutine_body()
 
-    def parse_parameter_list(self):
-        """Parse a list of parameters to a subroutine.
+    def compile_parameter_list(self):
+        """Compile a list of parameters to a subroutine.
 
         A parameter list consists of zero or more sequences of a type followed
         by a parameter name identifier, separated by commas.
 
             parameterList: ( type varName (',' type varName)* )?
         """
-        node = Node('parameterList')
         if not self.match_token('symbol', ')'):
-            node.add_child(self.parse_type())
-            node.add_child(*self.pop_token('identifier'))
+            ptype = self.compile_type()
+            name = self.compile_identifier()
+            self.subroutine_symbols.add_symbol(name, ptype, 'argument')
 
         while self.match_token('symbol', ','):
-            node.add_child(*self.pop_token())
-            node.add_child(self.parse_type())
-            node.add_child(*self.pop_token('identifier'))
+            ptype = self.compile_type()
+            name = self.compile_identifier()
+            self.subroutine_symbols.add_symbol(name, ptype, 'argument')
 
-        return node
-
-    def parse_var_dec(self):
-        """Parse a variable declaration.
+    def compile_var_dec(self):
+        """Compile a variable declaration.
 
         A variable declaration is the keyword 'var' followed by a type
         specifier, followed by a list of one or more variable name identifiers
@@ -275,24 +304,26 @@ class Parser:
 
             classVarDec: 'var' type varName (',' varName)* ';'
         """
-        node = Node('varDec')
-        node.add_child(*self.pop_token('keyword', 'var'))
-        node.add_child(self.parse_type())
-        node.add_child(*self.pop_token('identifier'))
+        self.pop_token('keyword', 'var')
+        vartype = self.compile_type()
+        name = self.compile_identifier()
+        self.subroutine_symbols.add_symbol(name, vartype, 'local')
 
         # Zero or more commas followed by additional variable names
         while self.match_token('symbol', ','):
-            node.add_child(*self.pop_token())
-            node.add_child(*self.pop_token('identifier'))
+            self.pop_token()
+            name = self.compile_identifier()
+            self.subroutine_symbols.add_symbol(name, vartype, 'local')
 
-        node.add_child(*self.pop_token('symbol', ';'))
-        return node
+        self.pop_token('symbol', ';')
 
-    def parse_type(self):
-        """Parse a type declaration.
+    def compile_type(self):
+        """Compile a type declaration.
 
         A type declaration can be either a keyword giving the name of a
         primitive type, or an identifier giving the name of a class.
+
+        In either case, consume the token and return its value.
 
         Grammar:
             type: 'int' | 'char' | 'boolean' | className
@@ -303,10 +334,17 @@ class Parser:
                 self.match_token('identifier')):
             raise ValueError(
                     "Expected a primitive type or class name")
-        return Node(*self.pop_token())
+        return self.pop_token().value
 
-    def parse_subroutine_body(self):
-        """Parse a subroutine body.
+    def compile_identifier(self):
+        """Compile an identifier.
+
+        Consume one identifier token, and return its value.
+        """
+        return self.pop_token('identifier').value
+
+    def compile_subroutine_body(self):
+        """Compile a subroutine body.
 
         A subroutine body is enclosed in curly brace symbols, and consists of
         zero or more variable declarations, followed by zero or more
@@ -314,38 +352,38 @@ class Parser:
 
             subroutineBody: '{' varDec* statements '}'
         """
-        node = Node('subroutineBody')
-        node.add_child(*self.pop_token('symbol', '{'))
+        self.pop_token('symbol', '{')
 
         while self.match_token('keyword', 'var'):
-            node.add_child(self.parse_var_dec())
+            self.compile_var_dec()
+        # Complete the 'function' code line that was previously left open by
+        # compile_subroutine_dec().
+        nlocals = self.subroutine_symbols.get_count('local')
+        self.write_line(str(nlocals))
 
-        node.add_child(self.parse_statements())
-        node.add_child(*self.pop_token('symbol', '}'))
-        return node
+        self.compile_statements()
+        self.pop_token('symbol', '}')
 
-    def parse_statements(self):
-        """Parse zero or more statements."""
-        node = Node('statements')
+    def compile_statements(self):
+        """Compile zero or more statements."""
         while self.match_token('keyword', STATEMENT_TYPES):
-            _, key = self.get_token()
+            key = self.get_token().value
             if key == 'let':
-                node.add_child(self.parse_let_statement())
+                self.compile_let_statement()
             elif key == 'if':
-                node.add_child(self.parse_if_statement())
+                self.compile_if_statement()
             elif key == 'while':
-                node.add_child(self.parse_while_statement())
+                self.compile_while_statement()
             elif key == 'do':
-                node.add_child(self.parse_do_statement())
+                self.compile_do_statement()
             elif key == 'return':
-                node.add_child(self.parse_return_statement())
+                self.compile_return_statement()
             else:
                 # Should never arrive here
                 raise RuntimeError(f"Unrecognised statement type {key}.")
-        return node
 
-    def parse_let_statement(self):
-        """Parse a 'let' statement (variable assignment).
+    def compile_let_statement(self):
+        """Compile a 'let' statement (variable assignment).
 
         A 'let' statement consists of the keyword 'let', followed by a variable
         name, followed optionally by an array index expression enclosed in
@@ -355,22 +393,24 @@ class Parser:
             letStatement: 'let' varName ( '[' expression ']' )?
                     '=' expression ';'
         """
-        node = Node('letStatement')
-        node.add_child(*self.pop_token('keyword', 'let'))
-        node.add_child(*self.pop_token('identifier'))
+        self.pop_token('keyword', 'let')
+        name = self.compile_identifier()
+        symbol = self.lookup_symbol(name)
 
         if self.match_token('symbol', '['):
-            node.add_child(*self.pop_token())
-            node.add_child(self.parse_expression())
-            node.add_child(*self.pop_token('symbol', ']'))
+            # Assignment to an array index
+            self.pop_token()
+            self.compile_expression()
+            # TODO: align 'that' to the index
+            self.pop_token('symbol', ']')
 
-        node.add_child(*self.pop_token('symbol', '='))
-        node.add_child(self.parse_expression())
-        node.add_child(*self.pop_token('symbol', ';'))
-        return node
+        self.pop_token('symbol', '=')
+        self.compile_expression()
+        self.write_line(f'pop {symbol}')
+        self.pop_token('symbol', ';')
 
-    def parse_if_statement(self):
-        """Parse an 'if' statement (conditional execution).
+    def compile_if_statement(self):
+        """Compile an 'if' statement (conditional execution).
 
         An 'if' statement consists of the keyword 'if', followed by an
         expression enclosed in parentheses, followed by zero or more statements
@@ -385,22 +425,22 @@ class Parser:
         node = Node('ifStatement')
         node.add_child(*self.pop_token('keyword', 'if'))
         node.add_child(*self.pop_token('symbol', '('))
-        node.add_child(self.parse_expression())
+        node.add_child(self.compile_expression())
         node.add_child(*self.pop_token('symbol', ')'))
         node.add_child(*self.pop_token('symbol', '{'))
-        node.add_child(self.parse_statements())
+        node.add_child(self.compile_statements())
         node.add_child(*self.pop_token('symbol', '}'))
 
         if self.match_token('keyword', 'else'):
             node.add_child(*self.pop_token())
             node.add_child(*self.pop_token('symbol', '{'))
-            node.add_child(self.parse_statements())
+            node.add_child(self.compile_statements())
             node.add_child(*self.pop_token('symbol', '}'))
 
         return node
 
-    def parse_while_statement(self):
-        """Parse a 'while' statement (repeated execution).
+    def compile_while_statement(self):
+        """Compile a 'while' statement (repeated execution).
 
         A 'while' statement consists of the keyword 'while', followed by an
         expression enclosed in parentheses, followed by zero or more statements
@@ -411,64 +451,65 @@ class Parser:
         node = Node('whileStatement')
         node.add_child(*self.pop_token('keyword', 'while'))
         node.add_child(*self.pop_token('symbol', '('))
-        node.add_child(self.parse_expression())
+        node.add_child(self.compile_expression())
         node.add_child(*self.pop_token('symbol', ')'))
         node.add_child(*self.pop_token('symbol', '{'))
-        node.add_child(self.parse_statements())
+        node.add_child(self.compile_statements())
         node.add_child(*self.pop_token('symbol', '}'))
         return node
 
-    def parse_do_statement(self):
-        """Parse a 'do' statement (subroutine invocation).
+    def compile_do_statement(self):
+        """Compile a 'do' statement (subroutine invocation).
 
         A 'do' statement consists of the keyword 'do', followed by a subroutine
         call, and ending with a semicolon.
 
             doStatement: 'do' subroutineCall ';'
         """
-        node = Node('doStatement')
-        node.add_child(*self.pop_token('keyword', 'do'))
+        self.pop_token('keyword', 'do')
+        parts = []
         while not self.match_token('symbol', '('):
-            node.add_child(*self.pop_token())
-        node.add_child(*self.pop_token('symbol', '('))
-        node.add_child(self.parse_expression_list())
-        node.add_child(*self.pop_token('symbol', ')'))
-        node.add_child(*self.pop_token('symbol', ';'))
-        return node
+            parts.append(self.pop_token().value)
+        name = ''.join(parts)
 
-    def parse_return_statement(self):
-        """Parse a 'return' statement.
+        self.pop_token('symbol', '(')
+        nargs = self.compile_expression_list()
+        self.pop_token('symbol', ')')
+        self.pop_token('symbol', ';')
+        self.write_line(f'call {name} {nargs}')
+
+    def compile_return_statement(self):
+        """Compile a 'return' statement.
 
         A 'return' statement consists of the keyword 'return', followed
         optionally by an expression, and ending with a semicolon.
 
             returnStatement: 'return' expression? ';'
         """
-        node = Node('returnStatement')
-        node.add_child(*self.pop_token('keyword', 'return'))
-        if not self.match_token('symbol', ';'):
-            node.add_child(self.parse_expression())
-        node.add_child(*self.pop_token('symbol', ';'))
-        return node
+        self.pop_token('keyword', 'return')
+        if self.match_token('symbol', ';'):
+            self.write_line('push 0')
+        else:
+            self.compile_expression()
+        self.pop_token('symbol', ';')
+        self.write_line('return')
 
-    def parse_expression(self):
-        """Parse an expression.
+    def compile_expression(self):
+        """Compile an expression.
 
         An expression consists of a term, followed by zero or more op and term
         pairs.
 
             expression: term (op term)*
         """
-        node = Node('expression')
-        node.add_child(self.parse_term())
+        self.compile_term()
 
         while self.match_token('symbol', OPERATORS):
-            node.add_child(*self.pop_token())
-            node.add_child(self.parse_term())
-        return node
+            self.pop_token()
+            self.compile_term()
 
-    def parse_term(self):
-        """Parse a term.
+    def compile_term(self):
+        """Compile a term.
 
         A term can be a constant, a variable name, an array index into a
         variable name, a subroutine call, a nested expression enclosed in
@@ -478,69 +519,66 @@ class Parser:
                     varName | varName '[' expression ']' | subroutineCall |
                     '(' expression ')' | unaryOp term
         """
-        node = Node('term')
-        if (
-                self.match_token('integerConstant') or
-                self.match_token('stringConstant') or
-                self.match_token('keyword', KEYWORD_CONSTANTS)):
-            node.add_child(*self.pop_token())
+        if self.match_token('integerConstant'):
+            value = self.pop_token().value
+            self.write_line(f'push constant {value}')
+
+        elif self.match_token('keyword', KEYWORD_CONSTANTS):
+            value = self.pop_token().value
+            if value == 'true':  # true is -1
+                self.write_line('push constant 1')
+                self.write_line('neg')
+            elif value in {'null', 'false'}:  # null and false are both 0
+                self.write_line('push constant 0')
+
+        elif self.match_token('stringConstant'):
+            self.pop_token()
 
         elif self.match_token('symbol', '('):
-            node.add_child(*self.pop_token())
-            node.add_child(self.parse_expression())
-            node.add_child(*self.pop_token('symbol', ')'))
+            self.pop_token()
+            self.compile_expression()
+            self.pop_token('symbol', ')')
 
-        elif self.match_token('symbol', UNARY_OPERATORS):
-            node.add_child(*self.pop_token())
-            node.add_child(self.parse_term())
+        elif self.match_token('symbol', UNARY_OPERATORS.keys()):
+            op = self.pop_token().value
+            self.compile_term()
+            self.write_line(UNARY_OPERATORS[op])
 
         else:
             # The only remaining cases are a variable reference, array index
             # into a variable, or subroutine call, so the next token must be an
             # identifier regardless.
-            node.add_child(*self.pop_token('identifier'))
+            name = self.compile_identifier()
             if self.match_token('symbol', '['):
                 # Array index
-                node.add_child(*self.pop_token())
-                node.add_child(self.parse_expression())
-                node.add_child(*self.pop_token('symbol', ']'))
+                self.pop_token()
+                self.compile_expression()
+                self.pop_token('symbol', ']')
             elif self.match_token('symbol', {'.', '('}):
                 # Subroutine call
                 if self.match_token('symbol', '.'):
                     # className.subroutineName syntax
-                    node.add_child(*self.pop_token())
-                    node.add_child(*self.pop_token('identifier'))
-                node.add_child(*self.pop_token('symbol', '('))
-                node.add_child(self.parse_expression_list())
-                node.add_child(*self.pop_token('symbol', ')'))
-        return node
+                    self.pop_token()
+                    name += '.' + self.compile_identifier()
+                self.pop_token('symbol', '(')
+                self.compile_expression_list()
+                self.pop_token('symbol', ')')
+            else:
+                symbol = self.lookup_symbol(name)
+                self.write_line(f'push {symbol}')
 
-    def parse_expression_list(self):
-        node = Node('expressionList')
+    def compile_expression_list(self):
         if self.match_token('symbol', ')'):
-            return node
+            return 0
 
-        node.add_child(self.parse_expression())
+        self.compile_expression()
+        count = 1
 
         while self.match_token('symbol', ','):
-            node.add_child(*self.pop_token())
-            node.add_child(self.parse_expression())
-        return node
-
-    def write_xml(self, stream, node=None, depth=0):
-        if node is None:
-            node = self.root
-
-        padding = '  ' * depth
-        stream.write(f'{padding}<{node.node_type}>')
-        if node.content is not None:
-            stream.write(html_escape(str(node.content)))
-            stream.write(f'</{node.node_type}>\n')
-        else:
-            stream.write('\n')
-            for child in node.children:
-                self.write_xml(stream, child, depth + 1)
-            stream.write(f'{padding}</{node.node_type}>\n')
+            self.pop_token()
+            self.compile_expression()
+            count += 1
+        return count
 
 
 def main(args):
@@ -548,10 +586,9 @@ def main(args):
 
     try:
         with open(inpath, 'r') as fp:
-            parser = Parser(fp)
-            parser.parse()
+            compiler = Compiler(fp, sys.stdout)
+            compiler.compile()
 
-        parser.write_xml(sys.stdout)
         return 0
     except Exception as e:
         sys.stderr.write(str(e))
