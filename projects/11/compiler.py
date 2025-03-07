@@ -3,7 +3,7 @@ import argparse
 import sys
 from collections import defaultdict, deque
 
-from tokeniser import Token, Tokeniser
+from tokeniser import Tokeniser
 
 
 PRIMITIVE_TYPES = {'int', 'char', 'boolean'}
@@ -11,7 +11,17 @@ CLASS_VAR_TYPES = {'field', 'static'}
 SUBROUTINE_TYPES = {'constructor', 'function', 'method'}
 STATEMENT_TYPES = {'let', 'if', 'while', 'do', 'return'}
 KEYWORD_CONSTANTS = {'true', 'false', 'null', 'this'}
-OPERATORS = {'+', '-', '*', '/', '&', '|', '<', '>', '='}
+OPERATORS = {
+        '+': 'add',
+        '-': 'sub',
+        '*': 'call Math.multiply 2',
+        '/': 'call Math.divide 2',
+        '&': 'and',
+        '|': 'or',
+        '<': 'lt',
+        '>': 'gt',
+        '=': 'eq',
+        }
 UNARY_OPERATORS = {'-': 'neg', '~': 'not'}
 
 
@@ -63,8 +73,11 @@ class Compiler:
         self.write(line)
         self.write('\n')
 
+    def make_label(self, label):
+        return f'{self.class_name}.L{self.label_counter}.{label}'
+
     def read_token(self):
-        """Consume one token from the tokeniser.
+        """Read in one token from the tokeniser.
 
         The token is appended to end of the internal tokens list and also
         returned from this method, as a Token object.
@@ -78,19 +91,20 @@ class Compiler:
         except StopIteration:
             raise ValueError('No more tokens available')
 
-    def get_token(self):
-        """Get the next token, reading it from the tokeniser if necessary.
+    def get_token(self, offset=0):
+        """Get a token, reading it from the tokeniser if necessary.
 
-        If there are any tokens currently in the internal token list, simply
-        return the first token. Otherwise, consume one token from the
-        tokeniser, add it to the internal token list, and return it. If there
-        are no tokens available, raise a ValueError.
+        If there are sufficient tokens currently in the internal token list,
+        simply return the token corresponding to `index`. Otherwise, consume
+        additional tokens as needed from the tokeniser, add them to the
+        internal token list, and return the target token. If there are not
+        enough tokens available from the tokeniser, raise a ValueError.
         """
-        if len(self.tokens) == 0:
+        while len(self.tokens) <= offset:
             self.read_token()
-        return self.tokens[0]
+        return self.tokens[offset]
 
-    def pop_token(self, type_required=None, value_required=None):
+    def consume_token(self, type_required=None, value_required=None):
         """Remove the next token from the internal token list.
 
         If there are no tokens currently in the token list, attempt to consume
@@ -109,10 +123,10 @@ class Compiler:
 
         return self.tokens.popleft()
 
-    def match_token(self, type_required=None, value_required=None):
-        """Return whether the next token conforms to a given type and/or value.
+    def match_token(self, type_required=None, value_required=None, offset=0):
+        """Return whether a token conforms to a given type and/or value.
 
-        If there is a token available, and it conforms to the type and value
+        If the target token is available, and it conforms to the type and value
         requirements, return True. Otherwise, return False.
 
         `type_required` may be either None, or one of the token type strings.
@@ -124,7 +138,7 @@ class Compiler:
         collection.
         """
         try:
-            token = self.get_token()
+            token = self.get_token(offset)
         except ValueError:
             return False
 
@@ -180,14 +194,27 @@ class Compiler:
         from there first. Otherwise, we look for it in the class table. If it
         is not in either table, that is an error.
 
-        If the symbol is found, return its memory segment name and index as a
-        string. If not, raise an error.
+        If the symbol is found, return it as a tuple of (type, kind, index).
+        If not, raise a KeyError.
         """
         try:
-            symbol = self.subroutine_symbols.get(name)
+            return self.subroutine_symbols.get(name)
         except KeyError:
-            symbol = self.class_symbols.get(name)
+            return self.class_symbols.get(name)
 
+    def get_symbol_code(self, symbol):
+        """Return the VM code for a given symbol.
+
+        Given a tuple from the symbol table (as returned by lookup_symbol),
+        return the snippet of VM code that can be used to address that symbol
+        in its virtual memory segment.
+
+        The code is formatted such that it can be injected directly into a
+        'push' or 'pop' VM command, as the target of that command.
+        """
+        segment = symbol[2]
+        if segment == 'field':
+            segment = 'this'
         return f'{symbol[1]} {symbol[2]}'
 
     def compile(self):
@@ -209,9 +236,9 @@ class Compiler:
 
             class: 'class' identifier '{' classVarDec* subroutineDec* '}'
         """
-        self.pop_token('keyword', 'class')
+        self.consume_token('keyword', 'class')
         self.class_name = self.compile_identifier()
-        self.pop_token('symbol', '{')
+        self.consume_token('symbol', '{')
 
         while self.match_token('keyword', CLASS_VAR_TYPES):
             self.compile_class_var_dec()
@@ -219,7 +246,7 @@ class Compiler:
         while self.match_token('keyword', SUBROUTINE_TYPES):
             self.compile_subroutine_dec()
 
-        self.pop_token('symbol', '}')
+        self.consume_token('symbol', '}')
 
     def compile_class_var_dec(self):
         """Compile a class variable declaration.
@@ -231,18 +258,18 @@ class Compiler:
 
             classVarDec: ('static' | 'field') type varName (',' varName)* ';'
         """
-        kind = self.pop_token('keyword', CLASS_VAR_TYPES).value
+        kind = self.consume_token('keyword', CLASS_VAR_TYPES).value
         vartype = self.compile_type()
-        name = self.pop_token('identifier')
+        name = self.compile_identifier()
         self.class_symbols.add_symbol(name, vartype, kind)
 
         # Zero or more commas followed by additional variable names
         while self.match_token('symbol', ','):
-            self.pop_token()
-            name = self.pop_token('identifier')
+            self.consume_token()
+            name = self.compile_identifier()
             self.class_symbols.add_symbol(name, vartype, kind)
 
-        self.pop_token('symbol', ';')
+        self.consume_token('symbol', ';')
 
     def compile_subroutine_dec(self):
         """Compile a subroutine declaration.
@@ -252,30 +279,110 @@ class Compiler:
         followed by an identifier naming the subroutine.
 
         It is then followed by a (possibly empty) list of parameters enclosed
-        in parentheses, then the body of the subroutine enclosed in curly
-        braces.
+        in parentheses, then the body of the subroutine.  The subroutine body
+        is enclosed in curly brace symbols, and consists of zero or more
+        variable declarations, followed by zero or more statements.
 
             subroutineDec: ('constructor' | 'method' | 'function')
                     ('void' | type) identifier '(' parameterList ')'
-                    subroutineBody
+                    '{' varDec* statements '}'
         """
-        subtype = self.pop_token('keyword', SUBROUTINE_TYPES).value
+        subtype = self.consume_token('keyword', SUBROUTINE_TYPES).value
+
+        # We don't do anything with the return type, so just check it for
+        # syntax validity.
         if self.match_token('keyword', 'void'):
-            return_type = self.pop_token().value
+            self.consume_token()
         else:
-            return_type = self.compile_type()
+            self.compile_type()
 
         name = self.compile_identifier()
         self.local_count = 0
         self.subroutine_symbols = SymbolTable()
-        self.pop_token('symbol', '(')
-        self.compile_parameter_list()
-        self.pop_token('symbol', ')')
 
-        # Leave the line running so that subroutine_body can fill in the number
-        # of locals.
-        self.write(f'function {self.class_name}.{name} ')
-        self.compile_subroutine_body()
+        if subtype == 'method':
+            # Add the implicit 'this' first argument to the symbol table
+            self.subroutine_symbols.add_symbol(
+                    'this', self.class_name, 'argument')
+
+        self.consume_token('symbol', '(')
+        self.compile_parameter_list()
+        self.consume_token('symbol', ')')
+
+        self.consume_token('symbol', '{')
+
+        while self.match_token('keyword', 'var'):
+            self.compile_var_dec()
+
+        nlocals = self.subroutine_symbols.get_count('local')
+        self.write_line(f'function {self.class_name}.{name} {nlocals}')
+
+        # Initialise all local variables to zero.
+        if nlocals > 0:
+            self.write_line(f'// Initialise {nlocals} local variables')
+            for i in range(nlocals):
+                self.write_line('push constant 0')
+                self.write_line(f'pop local {i}')
+
+        if subtype == 'constructor':
+            # Allocate memory for the new 'this' object
+            size = self.class_symbols.get_count('field')
+            self.write_line(f'push {size}')
+            self.write_line('call Memory.alloc 1')
+            self.write_line('pop pointer 0')
+
+        elif subtype == 'method':
+            # Align 'this' according to the implicit first argument
+            self.write_line('push argument 0')
+            self.write_line('pop pointer 0')
+
+        self.compile_statements()
+        self.consume_token('symbol', '}')
+
+    def compile_subroutine_call(self):
+        """Compile a subroutine call.
+
+        A subroutine call may optionally begin with a class or object
+        identifier followed by a period. It then consists of a function name
+        identifier, followed by a list of arguments in parentheses.
+
+            subroutineCall: (classOrObjectName '.')?
+                    functionName '(' expressionList ')'
+        """
+        nargs = 0
+        func_name = self.compile_identifier()
+        if self.match_token('symbol', '.'):
+            # This is classOrObjectName.functionName syntax
+            self.consume_token()
+            class_name = func_name
+            func_name = self.compile_identifier()
+
+            try:
+                var = self.lookup_symbol(class_name)
+                # The first part of the name is present in the symbol table, so
+                # treat it as a method call on that object, and push the object
+                # as the first implicit argument to the method.
+                code = self.get_symbol_code(var)
+                nargs = 1
+                self.write_line(f'push {code}  // {class_name}')
+                # The name of the class should be in the symbol's
+                # variable type.
+                class_name = var[0]
+            except KeyError:
+                # The first part of the name is not in the symbol
+                # table, so treat it as a (static) function call on a
+                # class.
+                pass
+        else:
+            # Invoking a method in the same class, so add 'this' as the
+            # implied first argument.
+            nargs = 1
+            self.write_line('push pointer 0  // this')
+            class_name = self.class_name
+        self.consume_token('symbol', '(')
+        nargs += self.compile_expression_list()
+        self.consume_token('symbol', ')')
+        self.write_line(f'call {class_name}.{func_name} {nargs}')
 
     def compile_parameter_list(self):
         """Compile a list of parameters to a subroutine.
@@ -291,31 +398,32 @@ class Compiler:
             self.subroutine_symbols.add_symbol(name, ptype, 'argument')
 
         while self.match_token('symbol', ','):
+            self.consume_token()
             ptype = self.compile_type()
             name = self.compile_identifier()
             self.subroutine_symbols.add_symbol(name, ptype, 'argument')
 
     def compile_var_dec(self):
-        """Compile a variable declaration.
+        """Compile a local variable declaration.
 
-        A variable declaration is the keyword 'var' followed by a type
+        A local variable declaration is the keyword 'var' followed by a type
         specifier, followed by a list of one or more variable name identifiers
         separated by commas, and finally concluded with a semicolon.
 
             classVarDec: 'var' type varName (',' varName)* ';'
         """
-        self.pop_token('keyword', 'var')
+        self.consume_token('keyword', 'var')
         vartype = self.compile_type()
         name = self.compile_identifier()
         self.subroutine_symbols.add_symbol(name, vartype, 'local')
 
         # Zero or more commas followed by additional variable names
         while self.match_token('symbol', ','):
-            self.pop_token()
+            self.consume_token()
             name = self.compile_identifier()
             self.subroutine_symbols.add_symbol(name, vartype, 'local')
 
-        self.pop_token('symbol', ';')
+        self.consume_token('symbol', ';')
 
     def compile_type(self):
         """Compile a type declaration.
@@ -334,35 +442,14 @@ class Compiler:
                 self.match_token('identifier')):
             raise ValueError(
                     "Expected a primitive type or class name")
-        return self.pop_token().value
+        return self.consume_token().value
 
     def compile_identifier(self):
         """Compile an identifier.
 
         Consume one identifier token, and return its value.
         """
-        return self.pop_token('identifier').value
-
-    def compile_subroutine_body(self):
-        """Compile a subroutine body.
-
-        A subroutine body is enclosed in curly brace symbols, and consists of
-        zero or more variable declarations, followed by zero or more
-        statements.
-
-            subroutineBody: '{' varDec* statements '}'
-        """
-        self.pop_token('symbol', '{')
-
-        while self.match_token('keyword', 'var'):
-            self.compile_var_dec()
-        # Complete the 'function' code line that was previously left open by
-        # compile_subroutine_dec().
-        nlocals = self.subroutine_symbols.get_count('local')
-        self.write_line(str(nlocals))
-
-        self.compile_statements()
-        self.pop_token('symbol', '}')
+        return self.consume_token('identifier').value
 
     def compile_statements(self):
         """Compile zero or more statements."""
@@ -393,21 +480,26 @@ class Compiler:
             letStatement: 'let' varName ( '[' expression ']' )?
                     '=' expression ';'
         """
-        self.pop_token('keyword', 'let')
+        self.consume_token('keyword', 'let')
         name = self.compile_identifier()
         symbol = self.lookup_symbol(name)
+        code = self.get_symbol_code(symbol)
 
         if self.match_token('symbol', '['):
             # Assignment to an array index
-            self.pop_token()
+            self.consume_token()
             self.compile_expression()
-            # TODO: align 'that' to the index
-            self.pop_token('symbol', ']')
+            self.consume_token('symbol', ']')
 
-        self.pop_token('symbol', '=')
+            self.write_line(f'push {code}  // {name}[]')
+            self.write_line('add')
+            self.write_line('pop pointer 1')
+            code = 'that 0'
+
+        self.consume_token('symbol', '=')
         self.compile_expression()
-        self.write_line(f'pop {symbol}')
-        self.pop_token('symbol', ';')
+        self.write_line(f'pop {code}  // {name}')
+        self.consume_token('symbol', ';')
 
     def compile_if_statement(self):
         """Compile an 'if' statement (conditional execution).
@@ -422,22 +514,32 @@ class Compiler:
             ifStatement: 'if' '(' expression ')' '{' statements '}'
                     ( 'else' '{' statements '}' )?
         """
-        node = Node('ifStatement')
-        node.add_child(*self.pop_token('keyword', 'if'))
-        node.add_child(*self.pop_token('symbol', '('))
-        node.add_child(self.compile_expression())
-        node.add_child(*self.pop_token('symbol', ')'))
-        node.add_child(*self.pop_token('symbol', '{'))
-        node.add_child(self.compile_statements())
-        node.add_child(*self.pop_token('symbol', '}'))
+        self.consume_token('keyword', 'if')
+        self.consume_token('symbol', '(')
+        self.compile_expression()
+        self.consume_token('symbol', ')')
+
+        self.write_line('neg')
+
+        self.label_counter += 1
+        else_label = self.make_label('ELSE')
+        end_label = self.make_label('ENDIF')
+
+        self.write_line(f'if-goto {else_label}')
+
+        self.consume_token('symbol', '{')
+        self.compile_statements()
+        self.consume_token('symbol', '}')
+
+        self.write_line(f'goto {end_label}')
+        self.write_line(f'label {else_label}')
 
         if self.match_token('keyword', 'else'):
-            node.add_child(*self.pop_token())
-            node.add_child(*self.pop_token('symbol', '{'))
-            node.add_child(self.compile_statements())
-            node.add_child(*self.pop_token('symbol', '}'))
-
-        return node
+            self.consume_token()
+            self.consume_token('symbol', '{')
+            self.compile_statements()
+            self.consume_token('symbol', '}')
+        self.write_line(f'label {end_label}')
 
     def compile_while_statement(self):
         """Compile a 'while' statement (repeated execution).
@@ -448,15 +550,25 @@ class Compiler:
 
             whileStatement: 'while' '(' expression ')' '{' statements '}'
         """
-        node = Node('whileStatement')
-        node.add_child(*self.pop_token('keyword', 'while'))
-        node.add_child(*self.pop_token('symbol', '('))
-        node.add_child(self.compile_expression())
-        node.add_child(*self.pop_token('symbol', ')'))
-        node.add_child(*self.pop_token('symbol', '{'))
-        node.add_child(self.compile_statements())
-        node.add_child(*self.pop_token('symbol', '}'))
-        return node
+        self.label_counter += 1
+        begin_label = self.make_label('WHILE')
+        end_label = self.make_label('ENDWHILE')
+
+        self.write_line(f'label {begin_label}')
+        self.consume_token('keyword', 'while')
+        self.consume_token('symbol', '(')
+        self.compile_expression()
+
+        self.write_line('neg')
+        self.write_line(f'if-goto {end_label}')
+
+        self.consume_token('symbol', ')')
+        self.consume_token('symbol', '{')
+        self.compile_statements()
+        self.consume_token('symbol', '}')
+
+        self.write_line(f'goto {begin_label}')
+        self.write_line(f'label {end_label}')
 
     def compile_do_statement(self):
         """Compile a 'do' statement (subroutine invocation).
@@ -466,17 +578,10 @@ class Compiler:
 
             doStatement: 'do' subroutineCall ';'
         """
-        self.pop_token('keyword', 'do')
-        parts = []
-        while not self.match_token('symbol', '('):
-            parts.append(self.pop_token().value)
-        name = ''.join(parts)
-
-        self.pop_token('symbol', '(')
-        nargs = self.compile_expression_list()
-        self.pop_token('symbol', ')')
-        self.pop_token('symbol', ';')
-        self.write_line(f'call {name} {nargs}')
+        self.consume_token('keyword', 'do')
+        self.compile_subroutine_call()
+        self.consume_token('symbol', ';')
+        self.write_line('pop temp 0  // discard void return')
 
     def compile_return_statement(self):
         """Compile a 'return' statement.
@@ -486,12 +591,12 @@ class Compiler:
 
             returnStatement: 'return' expression? ';'
         """
-        self.pop_token('keyword', 'return')
+        self.consume_token('keyword', 'return')
         if self.match_token('symbol', ';'):
-            self.write_line('push 0')
+            self.write_line('push 0  // void return')
         else:
             self.compile_expression()
-        self.pop_token('symbol', ';')
+        self.consume_token('symbol', ';')
         self.write_line('return')
 
     def compile_expression(self):
@@ -504,9 +609,10 @@ class Compiler:
         """
         self.compile_term()
 
-        while self.match_token('symbol', OPERATORS):
-            self.pop_token()
+        while self.match_token('symbol', OPERATORS.keys()):
+            op = self.consume_token().value
             self.compile_term()
+            self.write_line(OPERATORS[op])
 
     def compile_term(self):
         """Compile a term.
@@ -520,27 +626,29 @@ class Compiler:
                     '(' expression ')' | unaryOp term
         """
         if self.match_token('integerConstant'):
-            value = self.pop_token().value
+            value = self.consume_token().value
             self.write_line(f'push constant {value}')
 
         elif self.match_token('keyword', KEYWORD_CONSTANTS):
-            value = self.pop_token().value
+            value = self.consume_token().value
             if value == 'true':  # true is -1
-                self.write_line('push constant 1')
+                self.write_line('push constant 1  // true')
                 self.write_line('neg')
             elif value in {'null', 'false'}:  # null and false are both 0
-                self.write_line('push constant 0')
+                self.write_line(f'push constant 0  // {value}')
+            else:
+                self.write_line('push pointer 0  // this')
 
         elif self.match_token('stringConstant'):
-            self.pop_token()
+            self.consume_token()
 
         elif self.match_token('symbol', '('):
-            self.pop_token()
+            self.consume_token()
             self.compile_expression()
-            self.pop_token('symbol', ')')
+            self.consume_token('symbol', ')')
 
         elif self.match_token('symbol', UNARY_OPERATORS.keys()):
-            op = self.pop_token().value
+            op = self.consume_token().value
             self.compile_term()
             self.write_line(UNARY_OPERATORS[op])
 
@@ -548,26 +656,41 @@ class Compiler:
             # The only remaining cases are a variable reference, array index
             # into a variable, or subroutine call, so the next token must be an
             # identifier regardless.
-            name = self.compile_identifier()
-            if self.match_token('symbol', '['):
+            self.match_token('identifier')
+            if self.match_token('symbol', '[', 1):
                 # Array index
-                self.pop_token()
-                self.compile_expression()
-                self.pop_token('symbol', ']')
-            elif self.match_token('symbol', {'.', '('}):
-                # Subroutine call
-                if self.match_token('symbol', '.'):
-                    # className.subroutineName syntax
-                    self.pop_token()
-                    name += '.' + self.compile_identifier()
-                self.pop_token('symbol', '(')
-                self.compile_expression_list()
-                self.pop_token('symbol', ')')
-            else:
+                name = self.compile_identifier()
                 symbol = self.lookup_symbol(name)
-                self.write_line(f'push {symbol}')
+                code = self.get_symbol_code(symbol)
+
+                self.consume_token('symbol', '[')
+                self.compile_expression()
+                self.consume_token('symbol', ']')
+                self.write_line(f'push {code}  // {name}[]')
+                self.write_line('add')
+                self.write_line('pop pointer 1')
+                self.write_line('push that 0')
+            elif self.match_token('symbol', {'.', '('}, 1):
+                # Subroutine call
+                self.compile_subroutine_call()
+            else:
+                # Variable reference
+                name = self.compile_identifier()
+                symbol = self.lookup_symbol(name)
+                code = self.get_symbol_code(symbol)
+                self.write_line(f'push {code}  // {name}')
 
     def compile_expression_list(self):
+        """Compile an expression list.
+
+        An expression list is zero or more expressions, separated by commas and
+        terminated with a closing parenthesis. Each expression in the list will
+        be compiled individually.
+
+        The closing parenthesis is NOT consumed by this method.
+
+        Return the number of expressions that were compiled.
+        """
         if self.match_token('symbol', ')'):
             return 0
 
@@ -575,7 +698,7 @@ class Compiler:
         count = 1
 
         while self.match_token('symbol', ','):
-            self.pop_token()
+            self.consume_token()
             self.compile_expression()
             count += 1
         return count
