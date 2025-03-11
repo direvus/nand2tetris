@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import sys
+import traceback
 
 
 SYMBOLS = set('{}()[].,;+-*/&|<>=~')
@@ -62,9 +63,10 @@ class Tokeniser:
         comments.
         """
         i = self.index
-        ch = self.buf[i]
-        ch2 = self.buf[i: i+2]
         try:
+            ch = self.buf[i]
+            ch2 = self.buf[i: i+2]
+
             while ch.isspace() or ch2 in {'//', '/*'}:
                 while self.buf[i].isspace():
                     if self.buf[i] == '\n':
@@ -99,7 +101,7 @@ class Tokeniser:
             # remains anything to be read from the buffer, then it must be a
             # token.
             self.index = i
-            return i < (len(self.buf) - 1)
+            return i < len(self.buf)
         except IndexError:
             return False
 
@@ -175,6 +177,7 @@ def main(args):
         return 0
     except Exception as e:
         sys.stderr.write(str(e))
+        traceback.print_exc(file=sys.stderr)
         return 1
 
 

@@ -493,12 +493,25 @@ class Compiler:
 
             self.write_line(f'push {code}  // {name}[]')
             self.write_line('add')
-            self.write_line('pop pointer 1')
-            code = 'that 0'
 
-        self.consume_token('symbol', '=')
-        self.compile_expression()
-        self.write_line(f'pop {code}  // {name}')
+            # Evaluate the expression on the right-hand side now
+            self.consume_token('symbol', '=')
+            self.compile_expression()
+
+            # Set aside the result of the right-hand expression, so we can use
+            # the earlier value on the stack to align 'that' on the target
+            # array. We couldn't do this prior to evaluating the RHS, because
+            # the RHS might have contained array references and overwritten
+            # 'that'.
+            self.write_line('pop temp 0')
+            self.write_line('pop pointer 1')
+            self.write_line('push temp 0')
+            self.write_line('pop that 0')
+        else:
+            # Assignment to a normal variable
+            self.consume_token('symbol', '=')
+            self.compile_expression()
+            self.write_line(f'pop {code}  // {name}')
         self.consume_token('symbol', ';')
 
     def compile_if_statement(self):
