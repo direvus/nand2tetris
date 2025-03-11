@@ -52,7 +52,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('inputpath')
-    parser.add_argument('outdir', default=None)
+    parser.add_argument('outdir', default=None, nargs='?')
 
     args = parser.parse_args()
     sys.exit(main(args))
