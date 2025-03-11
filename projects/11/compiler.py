@@ -519,7 +519,7 @@ class Compiler:
         self.compile_expression()
         self.consume_token('symbol', ')')
 
-        self.write_line('neg')
+        self.write_line('not')
 
         self.label_counter += 1
         else_label = self.make_label('ELSE')
@@ -559,7 +559,7 @@ class Compiler:
         self.consume_token('symbol', '(')
         self.compile_expression()
 
-        self.write_line('neg')
+        self.write_line('not')
         self.write_line(f'if-goto {end_label}')
 
         self.consume_token('symbol', ')')
@@ -593,7 +593,7 @@ class Compiler:
         """
         self.consume_token('keyword', 'return')
         if self.match_token('symbol', ';'):
-            self.write_line('push 0  // void return')
+            self.write_line('push constant 0  // void return')
         else:
             self.compile_expression()
         self.consume_token('symbol', ';')
@@ -640,7 +640,13 @@ class Compiler:
                 self.write_line('push pointer 0  // this')
 
         elif self.match_token('stringConstant'):
-            self.consume_token()
+            value = self.consume_token().value
+            self.write_line(f'// Initialise string constant "{value}"')
+            self.write_line(f'push constant {len(value)}')
+            self.write_line('call String.new 1')
+            for ch in value:
+                self.write_line(f'push constant {ord(ch)}')
+                self.write_line('call String.appendChar 2')
 
         elif self.match_token('symbol', '('):
             self.consume_token()

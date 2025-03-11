@@ -80,3 +80,17 @@ $COMP "$DLDIR/projects/10/Square/Square.jack" > out/Square.xml && \
 $COMP "$DLDIR/projects/10/Square/SquareGame.jack" > out/SquareGame.xml && \
     $CHECK "$DLDIR/projects/10/Square/SquareGame.xml" out/SquareGame.xml
     printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
+
+echo ""
+echo "Project 11"
+echo "----------"
+
+DLPROJ="${DLDIR}/projects/11"
+COMP="${DIR}/../projects/11/compiler.py"
+CHECK="${DLDIR}/tools/TextComparer.sh"
+
+PKG="Average"
+OUTDIR="out/project11/$PKG"
+echo "$PKG"
+mkdir -p "$OUTDIR"
+$COMP "$DLPROJ/$PKG/Main.jack" > "$OUTDIR/Main.vm"
