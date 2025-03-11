@@ -22,6 +22,15 @@ class Math {
      *  in an expression, it handles it by invoking this method. 
      *  Thus, in Jack, x * y and Math.multiply(x,y) return the same value. */
     function int multiply(int x, int y) {
+        var int i, sum, shift;
+        let shift = x;
+        while (i < 16) {
+            if ((y & powersOfTwo[i]) > 0) {
+                let sum = sum + shift;
+            }
+            let shift = shift + shift;
+        }
+        return sum;
     }
 
     /** Returns the integer part of x / y.
@@ -37,13 +46,25 @@ class Math {
 
     /** Returns the greater value. */
     function int max(int a, int b) {
+        if (b > a) {
+            return b;
+        }
+        return a;
     }
 
     /** Returns the smaller value. */
     function int min(int a, int b) {
+        if (b < a) {
+            return b;
+        }
+        return a;
     }
 
     /** Returns the absolute value of x. */
     function int abs(int x) {
+        if (x < 0) {
+            return -x;
+        }
+        return x;
     }
 }
