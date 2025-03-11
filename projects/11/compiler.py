@@ -212,10 +212,10 @@ class Compiler:
         The code is formatted such that it can be injected directly into a
         'push' or 'pop' VM command, as the target of that command.
         """
-        segment = symbol[2]
+        segment = symbol[1]
         if segment == 'field':
             segment = 'this'
-        return f'{symbol[1]} {symbol[2]}'
+        return f'{segment} {symbol[2]}'
 
     def compile(self):
         """Begin compiling a Jack source code stream.
@@ -327,7 +327,7 @@ class Compiler:
         if subtype == 'constructor':
             # Allocate memory for the new 'this' object
             size = self.class_symbols.get_count('field')
-            self.write_line(f'push {size}')
+            self.write_line(f'push constant {size}')
             self.write_line('call Memory.alloc 1')
             self.write_line('pop pointer 0')
 
