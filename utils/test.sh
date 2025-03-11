@@ -65,20 +65,20 @@ CHECK="${DLDIR}/tools/TextComparer.sh"
 
 echo "ArrayTest"
 $COMP "$DLDIR/projects/10/ArrayTest/Main.jack" > out/Main.xml && \
-    $CHECK "$DLDIR/projects/10/ArrayTest/Main.xml" out/Main.xml
+    $CHECK "$DLDIR/projects/10/ArrayTest/Main.xml" out/Main.xml && \
     printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
 
 echo "Square"
 $COMP "$DLDIR/projects/10/Square/Main.jack" > out/Main.xml && \
-    $CHECK "$DLDIR/projects/10/Square/Main.xml" out/Main.xml
+    $CHECK "$DLDIR/projects/10/Square/Main.xml" out/Main.xml && \
     printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
 
 $COMP "$DLDIR/projects/10/Square/Square.jack" > out/Square.xml && \
-    $CHECK "$DLDIR/projects/10/Square/Square.xml" out/Square.xml
+    $CHECK "$DLDIR/projects/10/Square/Square.xml" out/Square.xml && \
     printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
 
 $COMP "$DLDIR/projects/10/Square/SquareGame.jack" > out/SquareGame.xml && \
-    $CHECK "$DLDIR/projects/10/Square/SquareGame.xml" out/SquareGame.xml
+    $CHECK "$DLDIR/projects/10/Square/SquareGame.xml" out/SquareGame.xml && \
     printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
 
 echo ""
@@ -87,40 +87,45 @@ echo "----------"
 
 DLPROJ="${DLDIR}/projects/11"
 COMP="${DIR}/../projects/11/JackCompiler.py"
-CHECK="${DLDIR}/tools/TextComparer.sh"
-
-PKG="Average"
-OUTDIR="out/project11/$PKG"
-echo "$PKG"
-mkdir -p "$OUTDIR"
-$COMP "$DLPROJ/$PKG" "$OUTDIR"
-
-PKG="ComplexArrays"
-OUTDIR="out/project11/$PKG"
-echo "$PKG"
-mkdir -p "$OUTDIR"
-$COMP "$DLPROJ/$PKG" "$OUTDIR"
-
-PKG="ConvertToBin"
-OUTDIR="out/project11/$PKG"
-echo "$PKG"
-mkdir -p "$OUTDIR"
-$COMP "$DLPROJ/$PKG" "$OUTDIR"
-
-PKG="Pong"
-OUTDIR="out/project11/$PKG"
-echo "$PKG"
-mkdir -p "$OUTDIR"
-$COMP "$DLPROJ/$PKG" "$OUTDIR"
 
 PKG="Seven"
 OUTDIR="out/project11/$PKG"
+echo ""
 echo "$PKG"
 mkdir -p "$OUTDIR"
-$COMP "$DLPROJ/$PKG" "$OUTDIR"
+$COMP "$DLPROJ/$PKG" "$OUTDIR" && printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
+
+PKG="ConvertToBin"
+OUTDIR="out/project11/$PKG"
+echo ""
+echo "$PKG"
+mkdir -p "$OUTDIR"
+$COMP "$DLPROJ/$PKG" "$OUTDIR" && printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
 
 PKG="Square"
 OUTDIR="out/project11/$PKG"
+echo ""
 echo "$PKG"
 mkdir -p "$OUTDIR"
-$COMP "$DLPROJ/$PKG" "$OUTDIR"
+$COMP "$DLPROJ/$PKG" "$OUTDIR" && printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
+
+PKG="Average"
+OUTDIR="out/project11/$PKG"
+echo ""
+echo "$PKG"
+mkdir -p "$OUTDIR"
+$COMP "$DLPROJ/$PKG" "$OUTDIR" && printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
+
+PKG="Pong"
+OUTDIR="out/project11/$PKG"
+echo ""
+echo "$PKG"
+mkdir -p "$OUTDIR"
+$COMP "$DLPROJ/$PKG" "$OUTDIR" && printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
+
+PKG="ComplexArrays"
+OUTDIR="out/project11/$PKG"
+echo ""
+echo "$PKG"
+mkdir -p "$OUTDIR"
+$COMP "$DLPROJ/$PKG" "$OUTDIR" && printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
