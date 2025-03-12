@@ -17,6 +17,7 @@ class Memory {
         let freeList = heap;
         let freeList[0] = 0;
         let freeList[1] = 14335;
+        return;
     }
 
     /** Returns the RAM value at the given address. */
@@ -33,8 +34,8 @@ class Memory {
     /** Finds an available RAM block of the given size and returns
      *  a reference to its base address. */
     function int alloc(int size) {
-        var Array curr, prev;
-        var int best, target;
+        var Array curr, prev, best;
+        var int target;
 
         let curr = freeList;
         let target = size + 1;
@@ -57,7 +58,7 @@ class Memory {
                  * best find.
                  */
                 if ((best = 0) | (curr[1] < best[1])) {
-                    best = curr;
+                    let best = curr;
                 }
             }
 
@@ -90,7 +91,7 @@ class Memory {
             let curr = curr[0];
         }
         // Append the deallocated block to the end of the list.
-        curr[0] = o - 2;
+        let curr[0] = o - 2;
         return;
     }
 }
