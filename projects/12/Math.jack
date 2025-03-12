@@ -5,30 +5,43 @@
 /**
  *  A library of commonly used mathematical functions.
  *  All functions runs in O(n), where n is the number of bits used
- *  for representing a two's complement integer value (16 in the Hack computer). 
+ *  for representing a two's complement integer value (16 in the Hack computer).
  *  Note: Jack compilers implement multiplication and division
  *  using calls to OS functions in this class.
  */
 class Math {
     static int n;             // Number of bits used for representing a two's complement integer
+    static int halfN;
     static Array powersOfTwo; // Stores 2^0, 2^1, 2^2,..., 2^(n-1)
 
     // Initializes the Math library.
     function void init() {
+        var int i, power;
+        let n = 16;
+        let halfN = 8;
+        let powersOfTwo = Array.new(n);
+        let power = 1;
+        while (i < n) {
+            let powersOfTwo[i] = power;
+            let power = power + power;
+            let i = i + 1;
+        }
+        return;
     }
 
-    /** Returns the product of x and y. 
+    /** Returns the product of x and y.
      *  When a Jack compiler detects the multiplication operator '*'
-     *  in an expression, it handles it by invoking this method. 
+     *  in an expression, it handles it by invoking this method.
      *  Thus, in Jack, x * y and Math.multiply(x,y) return the same value. */
     function int multiply(int x, int y) {
         var int i, sum, shift;
         let shift = x;
-        while (i < 16) {
-            if ((y & powersOfTwo[i]) > 0) {
+        while (i < n) {
+            if (~((y & powersOfTwo[i]) = 0)) {
                 let sum = sum + shift;
             }
             let shift = shift + shift;
+            let i = i + 1;
         }
         return sum;
     }
@@ -38,10 +51,51 @@ class Math {
      *  an an expression, it handles it by invoking this method.
      *  Thus, x/y and Math.divide(x,y) return the same value. */
     function int divide(int x, int y) {
+        var int absX, absY;
+        let absX = Math.abs(x);
+        let absY = Math.abs(y);
+
+        if ((x < 0) = (y < 0)) {
+            // Signs of X and Y are the same
+            return Math.divideAbs(absX, absY);
+        } else {
+            // Signs of X and Y differ
+            return -Math.divideAbs(absX, absY);
+        }
+    }
+
+    /** Internal function to support division.
+     *  Return the integer division of two arguments that have already been
+     *  converted into their absolute values. Normally would not be called
+     *  directly, but internally by Math.divide().
+     */
+    function int divideAbs(int x, int y) {
+        var int q;
+
+        if ((y > x) | (y < 0)) {
+            return 0;
+        }
+
+        let q = Math.divideAbs(x, y + y);
+        if ((x - (q + q + y + y)) < y) {
+            return q + q;
+        } else {
+            return q + q + 1;
+        }
     }
 
     /** Returns the integer part of the square root of x. */
     function int sqrt(int x) {
+        var int y, j, power, square;
+        while (j < halfN) {
+            let power = y + powersOfTwo[j];
+            let square = power * power;
+            if ((square < (x + 1)) & (square > 0)) {
+                let y = power;
+            }
+            let j = j + 1;
+        }
+        return y;
     }
 
     /** Returns the greater value. */
