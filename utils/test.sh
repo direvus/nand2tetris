@@ -1,11 +1,12 @@
 #!/bin/sh
 DIR="$(dirname "$0")"
 DLDIR="${DIR}/../download"
-VMT="${DIR}/../projects/07/vm_translator.py"
 CPU="$DLDIR/tools/CPUEmulator.sh"
+VME="$DLDIR/tools/VMEmulator.sh"
 
 echo "Project 7"
 echo "---------"
+VMT="${DIR}/../projects/07/vm_translator.py"
 $VMT "$DLDIR/projects/7/MemoryAccess/BasicTest/BasicTest.vm" && \
     $CPU "$DLDIR/projects/7/MemoryAccess/BasicTest/BasicTest.tst"
 
@@ -129,3 +130,9 @@ echo ""
 echo "$PKG"
 mkdir -p "$OUTDIR"
 $COMP "$DLPROJ/$PKG" "$OUTDIR" && printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
+
+echo ""
+echo "Project 12"
+echo "----------"
+
+sh "${DIR}/test12.sh"
