@@ -21,6 +21,7 @@ class Screen {
         let word = 16;
         let cols = 32;
         let color = true;
+        return;
     }
 
     /** Erases the entire screen. */
@@ -30,7 +31,7 @@ class Screen {
         // Set every word in the entire screen memory map to 0.
         let limit = base + size;
         while (i < limit) {
-            Memory.poke(i, 0);
+            do Memory.poke(i, 0);
         }
         return;
     }
@@ -49,27 +50,61 @@ class Screen {
         let col = x / word;
         let addr = base + (y * cols) + col;
         let v = Memory.peek(addr);
-        let i = (word - 1) - (x - (col * word));
+        let i = x - (col * word);
         let bit = Math.getBit(i);
 
         if (color) {
-            Memory.poke(addr, v | bit);
+            do Memory.poke(addr, v | bit);
         } else {
-            Memory.poke(addr, v & (~bit));
+            do Memory.poke(addr, v & (~bit));
         }
         return;
     }
 
     /** Draws a line from pixel (x1,y1) to pixel (x2,y2), using the current color. */
     function void drawLine(int x1, int y1, int x2, int y2) {
+        var int a, b, d, dy, dx, x, y;
+
+        if (x2 < x1) {
+            let x = x2;
+            let dx = x1 - x2;
+        } else {
+            let x = x1;
+            let dx = x2 - x1;
+        }
+        if (y2 < y1) {
+            let y = y2;
+            let dy = y1 - y2;
+        } else {
+            let y = y1;
+            let dy = y2 - y1;
+        }
+
+        while (~((a > dx) | (b > dy))) {
+            do Screen.drawPixel(x + a, y + b);
+            if (d < 0) {
+                // Go right
+                let a = a + 1;
+                let d = d + dy;
+            } else {
+                // Go up
+                let b = b + 1;
+                let d = d - dx;
+            }
+        }
+        return;
     }
 
     /** Draws a filled rectangle whose top left corner is (x1, y1)
      *  and bottom right corner is (x2,y2), using the current color. */
     function void drawRectangle(int x1, int y1, int x2, int y2) {
+        // TODO
+        return;
     }
 
     /** Draws a filled circle of radius r<=181 around (x,y), using the current color. */
     function void drawCircle(int x, int y, int r) {
+        // TODO
+        return;
     }
 }
