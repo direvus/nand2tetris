@@ -16,7 +16,7 @@ class Memory {
         let heap = 2048;
         let freeList = heap;
         let freeList[0] = 0;
-        let freeList[1] = 14335;
+        let freeList[1] = 14334;
         return;
     }
 
@@ -57,8 +57,12 @@ class Memory {
                  * smaller than our best find so far, mark it as the current
                  * best find.
                  */
-                if ((best = 0) | (curr[1] < best[1])) {
+                if (best = 0) {
                     let best = curr;
+                } else {
+                    if (curr[1] < best[1]) {
+                        let best = curr;
+                    }
                 }
             }
 
