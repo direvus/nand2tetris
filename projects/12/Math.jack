@@ -29,6 +29,13 @@ class Math {
         return;
     }
 
+    /** Returns the integer value with only the i'th bit set.
+     *  Equivalent to 2 to the i'th power, or 1 bit shifted left i times.
+     */
+    function int getBit(int i) {
+        return powersOfTwo[i];
+    }
+
     /** Returns the product of x and y.
      *  When a Jack compiler detects the multiplication operator '*'
      *  in an expression, it handles it by invoking this method.
