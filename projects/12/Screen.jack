@@ -63,33 +63,70 @@ class Screen {
 
     /** Draws a line from pixel (x1,y1) to pixel (x2,y2), using the current color. */
     function void drawLine(int x1, int y1, int x2, int y2) {
-        var int a, b, d, dy, dx, x, y;
+        var int a, b, d, x, y, dx, dy;
+
+        if (x1 = x2) {
+            // Vertical line
+            let x = x1;
+            let y = Math.min(y1, y2);
+            let b = Math.max(y1, y2);
+            while (~(y > b)) {
+                do Screen.drawPixel(x, y);
+                let y = y + 1;
+            }
+            return;
+        }
+
+        if (y1 = y2) {
+            // Horizontal line
+            let y = y1;
+            let x = Math.min(x1, x2);
+            let a = Math.max(x1, x2);
+            while (~(x > a)) {
+                do Screen.drawPixel(x, y);
+                let x = x + 1;
+            }
+            return;
+        }
 
         if (x2 < x1) {
             let x = x2;
-            let dx = x1 - x2;
-        } else {
-            let x = x1;
-            let dx = x2 - x1;
-        }
-        if (y2 < y1) {
             let y = y2;
+            let dx = x1 - x2;
             let dy = y1 - y2;
         } else {
+            let x = x1;
             let y = y1;
+            let dx = x2 - x1;
             let dy = y2 - y1;
         }
 
-        while (~((a > dx) | (b > dy))) {
-            do Screen.drawPixel(x + a, y + b);
-            if (d < 0) {
-                // Go right
-                let a = a + 1;
-                let d = d + dy;
-            } else {
-                // Go up
-                let b = b + 1;
-                let d = d - dx;
+        if (dy > 0) {
+            while (~((a > dx) | (b > dy))) {
+                do Screen.drawPixel(x + a, y + b);
+                if (d < 0) {
+                    // Go horizontal
+                    let a = a + 1;
+                    let d = d + dy;
+                } else {
+                    // Go vertical
+                    let b = b + 1;
+                    let d = d - dx;
+                }
+            }
+        } else {
+            let dy = -dy;
+            while (~((a > dx) | (b > dy))) {
+                do Screen.drawPixel(x + a, y - b);
+                if (d < 0) {
+                    // Go horizontal
+                    let a = a + 1;
+                    let d = d + dy;
+                } else {
+                    // Go vertical
+                    let b = b + 1;
+                    let d = d - dx;
+                }
             }
         }
         return;
