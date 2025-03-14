@@ -135,7 +135,20 @@ class Screen {
     /** Draws a filled rectangle whose top left corner is (x1, y1)
      *  and bottom right corner is (x2,y2), using the current color. */
     function void drawRectangle(int x1, int y1, int x2, int y2) {
-        // TODO
+        var int y, limit;
+
+        if (y1 > y2) {
+            let y = y2;
+            let limit = y1 + 1;
+        } else {
+            let y = y1;
+            let limit = y2 + 1;
+        }
+
+        while (y < limit) {
+            do Screen.drawLine(x1, y, x2, y);
+            let y = y + 1;
+        }
         return;
     }
 
