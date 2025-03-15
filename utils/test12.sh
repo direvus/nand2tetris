@@ -43,3 +43,14 @@ cp -v "${SRCDIR}/Screen.jack" "${BUILDDIR}/"
 cp -v "${SRCDIR}/Math.jack" "${BUILDDIR}/"
 $COMP "$BUILDDIR" && \
     printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
+
+PKG="OutputTest"
+BUILDDIR="${DIR}/../build/project12/$PKG"
+OUTDIR="${DIR}/../out/project12/$PKG"
+echo ""
+echo "$PKG"
+mkdir -p "$OUTDIR" "$BUILDDIR"
+cp -av "${DLPROJ}/${PKG}"/* "${BUILDDIR}/"
+cp -v "${SRCDIR}/Output.jack" "${BUILDDIR}/"
+$COMP "$BUILDDIR" && \
+    printf "\e[32m[OK]\e[0m\n" || printf "\e[31m[FAIL]\e[0m\n"
