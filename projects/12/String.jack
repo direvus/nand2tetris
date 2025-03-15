@@ -10,54 +10,139 @@
  * string-oriented operations.
  */
 class String {
+    field Array arr;
+    field int length;
 
     /** constructs a new empty string with a maximum length of maxLength
      *  and initial length of 0. */
     constructor String new(int maxLength) {
+        /*
+         * Not sure what the point of it is, but the test script expects to be
+         * able to create a string with a maximum length of zero.
+         */
+        if (maxLength > 0) {
+            let arr = Array.new(maxLength);
+        } else {
+            let arr = null;
+        }
+        let length = 0;
+        return this;
     }
 
     /** Disposes this string. */
     method void dispose() {
+        if (~(arr = null)) {
+            do arr.dispose();
+        }
+        do Memory.deAlloc(this);
+        return;
     }
 
     /** Returns the current length of this string. */
     method int length() {
+        return length;
     }
 
     /** Returns the character at the j-th location of this string. */
     method char charAt(int j) {
+        return arr[j];
     }
 
     /** Sets the character at the j-th location of this string to c. */
     method void setCharAt(int j, char c) {
+        let arr[j] = c;
+        return;
     }
 
     /** Appends c to this string's end and returns this string. */
     method String appendChar(char c) {
+        let arr[length] = c;
+        let length = length + 1;
+        return this;
     }
 
     /** Erases the last character from this string. */
     method void eraseLastChar() {
+        let length = length - 1;
+        return;
     }
 
     /** Returns the integer value of this string,
      *  until a non-digit character is detected. */
     method int intValue() {
+        var int i, limit, result;
+        var char c;
+        var boolean neg;
+
+        let limit = length;
+        while (i < limit) {
+            let c = charAt(i);
+            if ((c > 47) & (c < 58)) {
+                // Digit
+                let result = (result * 10) + (c - 48);
+            } else {
+                if (c = 45) {
+                    // Minus sign
+                    let neg = ~neg;
+                } else {
+                    // Non-numeric character, exit the loop now
+                    let limit = 0;
+                }
+            }
+            let i = i + 1;
+        }
+        if (neg) {
+            let result = -result;
+        }
+        return result;
     }
 
     /** Sets this string to hold a representation of the given value. */
     method void setInt(int val) {
+        var int zero, scale, div, rem;
+        var boolean sig;
+        let zero = 48;
+        let scale = 10000; // not more than 5 decimal digits in 16 bits.
+        let length = 0; // reset the string.
+
+        if (val = 0) {
+            do appendChar(zero);
+            return;
+        }
+
+        let rem = val;
+        if (rem < 0) {
+            do appendChar(45); // minus sign
+            let rem = -rem;
+        }
+
+        let sig = false;
+        while (scale > 0) {
+            let div = rem / scale;
+            if (div > 0) {
+                let sig = true;
+            }
+            if (sig) {
+                do appendChar(zero + div);
+            }
+            let rem = rem - (div * scale);
+            let scale = scale / 10;
+        }
+        return;
     }
 
     /** Returns the new line character. */
     function char newLine() {
+        return 128;
     }
 
     /** Returns the backspace character. */
     function char backSpace() {
+        return 129;
     }
 
     /** Returns the double quote (") character. */
     function char doubleQuote() {
+        return 34;
     }
 }
