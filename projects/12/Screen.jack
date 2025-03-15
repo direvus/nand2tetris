@@ -29,9 +29,11 @@ class Screen {
         var int i, limit;
 
         // Set every word in the entire screen memory map to 0.
+        let i = base;
         let limit = base + size;
         while (i < limit) {
             do Memory.poke(i, 0);
+            let i = i + 1;
         }
         return;
     }
