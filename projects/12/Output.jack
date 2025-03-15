@@ -245,6 +245,34 @@ class Output {
     /** Displays the given integer starting at the cursor location,
      *  and advances the cursor appropriately. */
     function void printInt(int i) {
+        var int zero, scale, div, value;
+        var boolean sig;
+        let zero = 48;
+        let scale = 10000; // not more than 5 decimal digits in 16 bits.
+
+        if (i = 0) {
+            do Output.printChar(zero);
+            return;
+        }
+
+        let value = i;
+        if (value < 0) {
+            do Output.printChar(45); // minus sign
+            let value = -value;
+        }
+
+        let sig = false;
+        while (scale > 0) {
+            let div = value / scale;
+            if (div > 0) {
+                let sig = true;
+            }
+            if (sig) {
+                do Output.printChar(zero + div);
+            }
+            let value = value - (div * scale);
+            let scale = scale / 10;
+        }
         return;
     }
 
