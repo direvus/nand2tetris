@@ -1,5 +1,6 @@
 .*.sw?
 *.zip
+*.out
 .venv/
 out/
 build/
