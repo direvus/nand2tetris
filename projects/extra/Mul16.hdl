@@ -1,0 +1,100 @@
+/**
+ * 16-bit multiplication gate
+ *
+ * shifted = a
+ * for i = 0, ..., 15:
+ *     if b[i]:
+ *         out += shifted
+ *     shifted = shifted << 1
+ *
+ * ────────────────────►┌───┐    
+ * 0                    │Mux├───┐
+ * ───┬────────────────►└─▲─┘   │
+ * a  │                   │     │
+ *    │               b[0]│     │
+ *    │                         │
+ *    │    ┌─────────┬──────────┘
+ *    │    │         │           
+ *    │    │         └─►┌───┐    
+ *    │    └──►┌───┐    │Mux├───┐
+ * ┌──▼──┐     │Add├───►└─▲─┘   │
+ * │Shift├─┬──►└───┘      │     │
+ * └─────┘ │          b[1]│     │
+ *    ┌────┘                    │
+ *    │    ┌─────────┬──────────┘
+ *    │    │         │           
+ *    │    │         └─►┌───┐    
+ *    │    └──►┌───┐    │Mux├───┐
+ * ┌──▼──┐     │Add├───►└─▲─┘   │
+ * │Shift├─┬──►└───┘      │     │     
+ * └─────┘ │          b[2]│     │     
+ *         ▼                    ▼     
+ *     [...]                [...]   
+ */
+CHIP Mul16 {
+    IN a[16], b[16];
+    OUT out[16];
+
+    PARTS:
+    Mux16(a=false, b=a, sel=b[0], out=Sum0);
+
+    Shift16(in=a, out=Shift1);
+    Add16(a=Sum0, b=Shift1, out=Add1);
+    Mux16(a=Sum0, b=Add1, sel=b[1], out=Sum1);
+
+    Shift16(in=Shift1, out=Shift2);
+    Add16(a=Sum1, b=Shift2, out=Add2);
+    Mux16(a=Sum1, b=Add2, sel=b[2], out=Sum2);
+
+    Shift16(in=Shift2, out=Shift3);
+    Add16(a=Sum2, b=Shift3, out=Add3);
+    Mux16(a=Sum2, b=Add3, sel=b[3], out=Sum3);
+
+    Shift16(in=Shift3, out=Shift4);
+    Add16(a=Sum3, b=Shift4, out=Add4);
+    Mux16(a=Sum3, b=Add4, sel=b[4], out=Sum4);
+
+    Shift16(in=Shift4, out=Shift5);
+    Add16(a=Sum4, b=Shift5, out=Add5);
+    Mux16(a=Sum4, b=Add5, sel=b[5], out=Sum5);
+
+    Shift16(in=Shift5, out=Shift6);
+    Add16(a=Sum5, b=Shift6, out=Add6);
+    Mux16(a=Sum5, b=Add6, sel=b[6], out=Sum6);
+
+    Shift16(in=Shift6, out=Shift7);
+    Add16(a=Sum6, b=Shift7, out=Add7);
+    Mux16(a=Sum6, b=Add7, sel=b[7], out=Sum7);
+
+    Shift16(in=Shift7, out=Shift8);
+    Add16(a=Sum7, b=Shift8, out=Add8);
+    Mux16(a=Sum7, b=Add8, sel=b[8], out=Sum8);
+
+    Shift16(in=Shift8, out=Shift9);
+    Add16(a=Sum8, b=Shift9, out=Add9);
+    Mux16(a=Sum8, b=Add9, sel=b[9], out=Sum9);
+
+    Shift16(in=Shift9, out=Shift10);
+    Add16(a=Sum9, b=Shift10, out=Add10);
+    Mux16(a=Sum9, b=Add10, sel=b[10], out=Sum10);
+
+    Shift16(in=Shift10, out=Shift11);
+    Add16(a=Sum10, b=Shift11, out=Add11);
+    Mux16(a=Sum10, b=Add11, sel=b[11], out=Sum11);
+
+    Shift16(in=Shift11, out=Shift12);
+    Add16(a=Sum11, b=Shift12, out=Add12);
+    Mux16(a=Sum11, b=Add12, sel=b[12], out=Sum12);
+
+    Shift16(in=Shift12, out=Shift13);
+    Add16(a=Sum12, b=Shift13, out=Add13);
+    Mux16(a=Sum12, b=Add13, sel=b[13], out=Sum13);
+
+    Shift16(in=Shift13, out=Shift14);
+    Add16(a=Sum13, b=Shift14, out=Add14);
+    Mux16(a=Sum13, b=Add14, sel=b[14], out=Sum14);
+
+    Shift16(in=Shift14, out=Shift15);
+    Add16(a=Sum14, b=Shift15, out=Add15);
+    Mux16(a=Sum14, b=Add15, sel=b[15], out=out);
+}
